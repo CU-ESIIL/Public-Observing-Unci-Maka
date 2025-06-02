@@ -1,0 +1,34 @@
+name: Sync with Template Repository
+
+on:
+    workflow_dispatch:
+
+jobs:
+  sync_template:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout main repository
+      uses: actions/checkout@v2
+
+    - name: Configure Git for merge
+      run: |
+          git config --global user.name "github-actions" 
+          git config --global user.email "actions@users.noreply.github.com"
+    
+    - name: Fetch template repository
+      run: git fetch --no-tags --no-recurse-submodules https://github.com/CU-ESIIL/Working_group_OASIS.git +refs/heads/*:refs/remotes/template/*
+
+    - name: Merge changes from template repository
+      run: |
+        git merge --no-commit --no-ff --allow-unrelated-histories template/main || true
+        git checkout --ours .
+        git add .
+        
+    - name: Commit changes
+      run: git commit -am "Merge changes from template repository"
+
+    - name: Push changes
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
