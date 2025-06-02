@@ -15,15 +15,20 @@ Welcome to the **[Observing Unci Maka]** repository, an integral part of the Env
 [Link to the detailed project proposal document or include it directly in the repository. Outline the goals, methodologies, anticipated challenges, and projected timelines.]
 
 ## Group Members
-- Member 1: Joni Tabaco.
+- Member 1: Joni Tabacco.
 - Member 2: Shannon Boldt.
-- Member 3: Vanessa Taho
-- Member 4: Daryl Reano
-- Member 5: Aiya Linquist
-- Member 6. Shawn Sherbian
-- Member 7. Maxwell Cook
-- Member 8. Bob Rabin
-- Member 9. 
+- Member 3: Vanessa Taho.
+- Member 4: Darryl Reano.
+- Member 5: Aiya Linquist.
+- Member 6. Shawn Serbin.
+- Member 7. Maxwell Cook.
+- Member 8. Bob Rabin.
+- Member 9. Elisha YellowThunder.
+- Member 10 Sam Ledo.
+- Member 11 Sylvie Alexander.
+- Memebr 12 Cheryl Sanders.
+- Member 13 B Poley.
+- Member 14 
 - ...
 - [Link to more detailed bios or profiles if available.]
 
