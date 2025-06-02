@@ -1,8 +1,8 @@
 [![DOI](https://zenodo.org/badge/727888683.svg)](https://zenodo.org/doi/10.5281/zenodo.11166898)
 
-# [Your Working Group Name]
+# [Public Observing Unci Maka]
 
-Welcome to the **[Your Working Group Name]** repository, an integral part of the Environmental Data Science Innovation and Inclusion Lab (ESIIL). This repository is the central hub for our working group, encompassing our project overview, proposals, team member information, codebase, and more.
+Welcome to the **[Observing Unci Maka]** repository, an integral part of the Environmental Data Science Innovation and Inclusion Lab (ESIIL). This repository is the central hub for our working group, encompassing our project overview, proposals, team member information, codebase, and more.
 
 ## Our Project
 [Provide a brief overview of your project here. Describe what you aim to achieve, the importance of your project, and its expected impact.]
@@ -15,8 +15,15 @@ Welcome to the **[Your Working Group Name]** repository, an integral part of the
 [Link to the detailed project proposal document or include it directly in the repository. Outline the goals, methodologies, anticipated challenges, and projected timelines.]
 
 ## Group Members
-- Member 1: Brief description or role within the group.
-- Member 2: Brief description or role within the group.
+- Member 1: Joni Tabaco.
+- Member 2: Shannon Boldt.
+- Member 3: Vanessa Taho
+- Member 4: Daryl Reano
+- Member 5: Aiya Linquist
+- Member 6. Shawn Sherbian
+- Member 7. Maxwell Cook
+- Member 8. Bob Rabin
+- Member 9. 
 - ...
 - [Link to more detailed bios or profiles if available.]
 
