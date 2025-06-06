@@ -19,16 +19,18 @@ Welcome to the **[Observing Unci Maka]** repository, an integral part of the Env
 - Member 2: Shannon Boldt.
 - Member 3: Vanessa Taho.
 - Member 4: Darryl Reano.
-- Member 5: Aiya Linquist.
+- Member 5: Ayia Linquist.
 - Member 6. Shawn Serbin.
-- Member 7. Maxwell Cook.
+- Member 7. Max Cook.
 - Member 8. Bob Rabin.
 - Member 9. Elisha YellowThunder.
-- Member 10 Sam Ledo.
+- Member 10 Sam Toledo.
 - Member 11 Sylvie Alexander.
-- Memebr 12 Cheryl Sanders.
-- Member 13 B Poley.
-- Member 14 
+- Memebr 12 Cynthia Sanders.
+- Member 13 Betty Poley.
+- Member 14 Debi Nalwood
+- Member 15 Summer Dupreee
+- Member 16 Gabriel Talayumptewa
 - ...
 - [Link to more detailed bios or profiles if available.]
 
