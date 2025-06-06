@@ -8,7 +8,7 @@ Welcome to the **[Observing Unci Maka]** repository, an integral part of the Env
 [Provide a brief overview of your project here. Describe what you aim to achieve, the importance of your project, and its expected impact.]
 
 ## Documentation
-- Access detailed documentation on our [GitHub Pages site](https://your-gh-pages-url/).
+- Access detailed documentation on our https://github.com/CU-ESIIL/Public-Observing-Unci-Maka#.
 - Find comprehensive guides, tutorials, and additional resources.
 
 ## Project Proposal
