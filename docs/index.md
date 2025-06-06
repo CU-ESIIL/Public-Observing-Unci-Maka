@@ -6,7 +6,7 @@ test edit
 
 ## Our Project
 
-[Provide a brief overview of your project here. Explain what you aim to achieve, the importance of your project, and its expected impact.]
+Environmental Justice for the Pine Ridge Reservation in South Dakota
 
 ## Project Proposal
 
