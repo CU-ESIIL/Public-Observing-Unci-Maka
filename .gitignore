@@ -2,9 +2,17 @@
 .Rhistory
 .Rapp.history
 
+# PyCharm files
+*.idea/
+
+# data
+*data/
+
 # Session Data files
 .RData
 .RDataTmp
+*.DS_Store
+docs/.DS_Store
 
 # User-specific files
 .Ruserdata
