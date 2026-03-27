@@ -27,5 +27,9 @@ dependencies:
   - spectral
   - scikit-image
   - pip
+  - pynhd           # NHDPlus flowlines via NLDI
+  - py3dep          # USGS 3DEP DEM access
+  - pysheds         # DEM hydrological processing + HAND computation
+  - scipy           # spatial operations (label, binary_fill_holes)
   - pip:
       - localtileserver
