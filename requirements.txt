@@ -1,3 +1,6 @@
+# Documentation build dependencies only (mkdocs site + GitHub Pages CI).
+# For the project Python environment, use: mamba env create -f environment.yml
+
 bump2version
 coverage
 flake8

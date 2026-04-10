@@ -8,11 +8,8 @@ Welcome to the **[Observing Unci Maka]** repository, an integral part of the Env
 This working group brings together Tribal members, scientists, students and NASA remote-sensing researchers to formulate new methods of using existing earth observation data to identify, monitor, and address environmental impacts on Tribal communities. These methods will be co-developed utilizing culturally-specific data synthesis techniques, which will include leveraging existing resources and hosting community workshops on the Hopi and Pine Ridge Reservations, where members of the working group are from. Both of these Tribal lands are impacted by current and legacy uranium mining, which has lasting effects on the air, water, soils, and health of these communities. During these visits, the working group will discuss how to effectively synthesize available datasets to prioritize new measurements and gaps in resources for addressing and identifying environmental impacts. This will be done through developing new software to identify sources of environmental impacts, degradation, and risk using data from various satellites and surface monitoring networks. Additionally, advancing data sovereignty is a shared goal of this working group and there will be community building, planning, and discussions for how this existing environmental data and future collections can be aligned with traditional ecological knowledge frameworks. Historically, very limited research into the historical impacts of mining has been conducted using remote sensing techniques to address these types of environmental impacts nor have past research efforts been led by the communities impacted, which makes this working group novel and essential.
 
 ## Documentation
-- Access detailed documentation on our https://github.com/CU-ESIIL/Public-Observing-Unci-Maka#.
-- Find comprehensive guides, tutorials, and additional resources.
-
-## Project Proposal
-[Link to the detailed project proposal document or include it directly in the repository. Outline the goals, methodologies, anticipated challenges, and projected timelines.]
+- Full documentation site: https://cu-esiil.github.io/Public-Observing-Unci-Maka
+- Guides for CyVerse setup, Docker, data processing, and analysis are in `docs/resources/`
 
 ## Group Members
 - Member 1: Joni Tabacco.
@@ -35,9 +32,13 @@ This working group brings together Tribal members, scientists, students and NASA
 - [Link to more detailed bios or profiles if available.]
 
 ## Repository Structure
-- **Analysis Code**: Scripts for data analysis, statistical modeling, etc.
-- **Data Processing**: Scripts for cleaning, merging, and managing datasets.
-- **Visualization**: Code for creating figures, charts, and interactive visualizations.
+- **`notebooks/`** — Jupyter notebooks for HLS reflectance, valley bottom extraction (VBET), EMIT remote sensing, and STELLA field data visualization
+- **`data/`** — Study area boundaries and ground control points (Craven Canyon / Pine Ridge)
+- **`tools/emit/`** — NASA EMIT data access tools, tutorials, and Python modules
+- **`tools/STELLA/`** — STELLA-Q2 field spectrometer data outputs
+- **`docs/`** — Project documentation, meeting notes, and the mkdocs site source
+- **`docker/`** — Dockerfile and environment for the CyVerse JupyterLab image
+- **`environment.yml`** — Conda environment for running project notebooks locally or on CyVerse
 
 ## Meeting Notes and Agendas
 - Regular updates to keep all group members informed and engaged with the project's progress and direction.
@@ -50,18 +51,5 @@ This working group brings together Tribal members, scientists, students and NASA
   - Review and merge changes through pull requests for oversight.
 
 ## Getting Help
-- If you encounter any issues or have questions, please refer to the [ESIIL Support Page](https://esiil-support-page-url/) or contact the repository maintainers directly.
-
-## Customize Your Repository
-- **Edit This Readme**: Update with information specific to your project.
-- **Update Group Member Bios**: Add detailed information about each group member's expertise and role.
-- **Organize Your Code**: Use logical structure and clear naming conventions.
-- **Document Your Data**: Include a data directory with README files for datasets.
-- **Outline Your Methods**: Create a METHODS.md file for methodologies and tools.
-- **Set Up Project Management**: Use 'Issues' and 'Projects' for task tracking.
-- **Add a License**: Include an appropriate open-source license.
-- **Create Contribution Guidelines**: Establish a CONTRIBUTING.md file.
-- **Review and Merge Workflow**: Document your process for reviewing and merging changes.
-- **Establish Communication Channels**: Set up channels like Slack or Discord for discussions.
-
-Remember, the goal is to make your repository clear, accessible, and useful for all current and future members of your working group. Happy researching!
+- For CyVerse and environment setup, see `docs/resources/cyverse_basics.md`
+- For issues with the repository, open a GitHub Issue or contact the maintainers directly

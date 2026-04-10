@@ -125,12 +125,20 @@ RUN conda update -y conda && \
 WORKDIR /home/jovyan
 COPY environment.yml /home/jovyan/ 
 RUN mamba env create -f /home/jovyan/environment.yml
-RUN . /opt/conda/etc/profile.d/conda.sh && conda deactivate && conda activate custom && python -m ipykernel install --name custom && pip install jupyter_contrib_nbextensions
+RUN . /opt/conda/etc/profile.d/conda.sh && conda deactivate && conda activate unci-maka-py && \
+    python -m ipykernel install --name unci-maka-py --display-name "Python (unci-maka-py)" \
+      --env PROJ_DATA /opt/conda/envs/unci-maka-py/share/proj \
+      --env PROJ_LIB /opt/conda/envs/unci-maka-py/share/proj \
+      --env GDAL_DATA /opt/conda/envs/unci-maka-py/share/gdal && \
+    pip install jupyter_contrib_nbextensions
 
 # Install R packages from CRAN and GitHub
 RUN R -e "remotes::install_github('tomroh/ecoregions')"
 RUN R -e "install.packages('mblm', repos='http://cran.rstudio.com/')"
 
-# Set any required environment variables 
-ENV PROJ_LIB=/opt/conda/envs/custom/share/proj
-RUN echo "PROJ_LIB=/opt/conda/envs/custom/share/proj" > /home/jovyan/.Renviron
+# Set PROJ and GDAL environment variables for Python and R
+ENV PROJ_LIB=/opt/conda/envs/unci-maka-py/share/proj
+ENV PROJ_DATA=/opt/conda/envs/unci-maka-py/share/proj
+ENV GDAL_DATA=/opt/conda/envs/unci-maka-py/share/gdal
+RUN echo "PROJ_LIB=/opt/conda/envs/unci-maka-py/share/proj" > /home/jovyan/.Renviron && \
+    echo "GDAL_DATA=/opt/conda/envs/unci-maka-py/share/gdal" >> /home/jovyan/.Renviron

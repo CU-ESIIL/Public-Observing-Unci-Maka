@@ -41,6 +41,44 @@
 5. Now you should see Jupyter Lab!
    ![jupyterlab](../assets/cyverse_basics/jupyterlab.png)
 
+## Set Up the Project Environment
+
+After launching JupyterLab, open a terminal (**File → New → Terminal**) and run the following commands:
+
+**1. Clone the repository** (if you haven't already):
+```bash
+git clone https://github.com/CU-ESIIL/Public-Observing-Unci-Maka.git
+cd Public-Observing-Unci-Maka
+```
+
+**2. Limit extraction threads** (prevents memory errors during install on CyVerse):
+```bash
+conda config --set fetch_threads 1
+conda config --set extract_threads 1
+```
+
+**3. Create the conda environment**:
+```bash
+mamba env create -f environment.yml
+```
+
+**4. Register the kernel** so notebooks can find it (the `--env` flags embed the PROJ/GDAL paths directly in the kernel spec, preventing CRS errors):
+```bash
+conda activate unci-maka-py
+python -m ipykernel install --user \
+  --name unci-maka-py \
+  --display-name "Python (unci-maka-py)" \
+  --env PROJ_DATA /opt/conda/envs/unci-maka-py/share/proj \
+  --env PROJ_LIB /opt/conda/envs/unci-maka-py/share/proj \
+  --env GDAL_DATA /opt/conda/envs/unci-maka-py/share/gdal
+```
+
+**5. Refresh JupyterLab** and select **"Python (unci-maka-py)"** from the kernel picker when opening any notebook.
+
+> **Note:** You only need to do steps 2–4 once per CyVerse analysis session. If you start a new analysis, repeat from step 1. Your GitHub SSH credentials also need to be recreated each new session (see below).
+
+---
+
 ## Set up your GitHub credentials
 
 ### If you would prefer to follow a video instead of a written outline, we have prepared a video here:
