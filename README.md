@@ -31,6 +31,8 @@ This working group brings together Tribal members, scientists, students and NASA
 - ...
 - [Link to more detailed bios or profiles if available.]
 
+[Link to Team Member Bios](https://github.com/CU-ESIIL/Public-Observing-Unci-Maka/blob/main/BIOS.md)
+
 ## Repository Structure
 - **`notebooks/`** — Jupyter notebooks for HLS reflectance, valley bottom extraction (VBET), EMIT remote sensing, and STELLA field data visualization
 - **`data/`** — Study area boundaries and ground control points (Craven Canyon / Pine Ridge)
