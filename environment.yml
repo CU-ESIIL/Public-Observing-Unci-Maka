@@ -4,32 +4,25 @@ channels:
 dependencies:
   - python=3.12
   - jupyterlab
-  - ipywidgets
+  - ipykernel       # register env as Jupyter kernel in CyVerse
   - numpy
   - pandas
   - matplotlib
-  - geopandas
-  - shapely
-  - folium
-  - rioxarray
-  - rasterio
-  - gdal
-  - pyproj
-  - cartopy
+  - seaborn
+  - geopandas       # pulls in shapely, pyproj, fiona
+  - rioxarray       # pulls in affine, xarray
+  - rasterio        # pulls in gdal
+  - gdal            # explicitly imported as osgeo.gdal
   - xarray
-  - netCDF4
-  - h5netcdf
-  - dask
-  - zarr
+  - dask            # lazy loading backend for earthaccess/rioxarray
+  - folium
   - holoviews
-  - hvplot
-  - earthaccess
-  - spectral
-  - scikit-image
-  - pip
+  - hvplot          # pulls in bokeh
+  - earthaccess     # pulls in requests, fsspec, aiohttp
+  - scipy           # spatial operations (label, binary_fill_holes)
   - pynhd           # NHDPlus flowlines via NLDI
   - py3dep          # USGS 3DEP DEM access
   - pysheds         # DEM hydrological processing + HAND computation
-  - scipy           # spatial operations (label, binary_fill_holes)
+  - pip
   - pip:
       - localtileserver
