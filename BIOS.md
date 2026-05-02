@@ -1,7 +1,7 @@
 [Markdown Basics](https://github.com/CU-ESIIL/Public-Observing-Unci-Maka/blob/main/docs/resources/markdown_basics.md)
 
-# Project Team Biographies and Assignments
-## Add your biographies here and your interests
+# Project Team Biographies and Responsiblities
+
 
 # Shannon Boldt
 
