@@ -14,7 +14,7 @@ identify, monitor, and address environmental injustices in Tribal communities. W
 
 [Project Proposal](https://drive.google.com/file/d/1iqQ7lRXrBFaptPt88OZRX1Swa66yaV2q/view?usp=sharing)
 
-
+[Project Deliverables - Updated May 2026](https://drive.google.com/file/d/1PxLn58_wBbHsTem0eLcDxEWA2YAAns4w/view?usp=sharing)
 
 ## Group Members
 ### Sylvie Alexander
