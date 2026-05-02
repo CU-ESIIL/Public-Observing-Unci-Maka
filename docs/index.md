@@ -2,20 +2,20 @@
 
 Welcome to the Observing Unci Maka repository, part of the Environmental Data Science Innovation and Impact Lab (ESIIL) at CU Boulder. This repository serves as the central hub for our working group, hosting our project description, member bios, codebase, and more.
 
-#
+
 ## Our Project
 
 This working group brings together Tribal members, scientists, students and NASA remote
 sensing researchers to formulate new methods of using existing earth observation data to
 identify, monitor, and address environmental injustices in Tribal communities. We have two in-person meetings that we are using to gather preliminary insights to how NASA datasets could be used to address important socio-environmental issues near Tribally-managed lands as well as landscapes that sustain cultural resources that are important for Indigenous Ways of Being and Knowing. 
 
-#
+
 ## Project Proposal
 
 [Project Proposal](https://drive.google.com/file/d/1iqQ7lRXrBFaptPt88OZRX1Swa66yaV2q/view?usp=sharing)
 
 
-#
+
 ## Group Members
 ### Sylvie Alexander
 ### Shannon Boldt
@@ -35,7 +35,7 @@ identify, monitor, and address environmental injustices in Tribal communities. W
 ### Elisha Yellow Thunder
 
 
-#
+
 ## Code Repository
 
 This section of the repository will include all the code developed for the project. You can structure it as follows:
@@ -44,12 +44,12 @@ This section of the repository will include all the code developed for the proje
 - **Data Processing**: Scripts for cleaning, merging, and managing datasets.
 - **Visualization**: Code for creating figures, charts, and interactive visualizations.
 
-#
+
 ## Meeting Notes and Agendas
 
 [Meeting Notes](https://docs.google.com/document/d/12gwgYzcQxx3jlI7XeCOgGxpQGZ4jicNBdkzEgN5QwkQ/edit?usp=sharing) 
 
-#
+
 ## Contributing to This Repository
 
 We welcome contributions from all group members. To maintain the quality and integrity of the repository, please adhere to the following guidelines:
@@ -58,12 +58,12 @@ We welcome contributions from all group members. To maintain the quality and int
 - Document any major changes or decisions in the meeting notes.
 - Review and merge changes through pull requests to ensure oversight.
 
-#
+
 ## Getting Help
 
 If you encounter any issues or have questions about how to contribute, please refer to the [ESIIL Support Page](https://esiil.org/support) or contact the repository maintainers directly.
 
-#
+
 ## Customize Your Repository
 
 As a new working group, you'll want to make this repository your own. Here's how to get started:
