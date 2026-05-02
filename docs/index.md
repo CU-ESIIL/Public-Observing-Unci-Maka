@@ -14,27 +14,27 @@ identify, monitor, and address environmental injustices in Tribal communities. W
 
 [Project Proposal](https://drive.google.com/file/d/1iqQ7lRXrBFaptPt88OZRX1Swa66yaV2q/view?usp=sharing)
 
-[Project Deliverables - Updated May 2026](https://drive.google.com/file/d/1PxLn58_wBbHsTem0eLcDxEWA2YAAns4w/view?usp=sharing)
+[Project Deliverables - Updated May 2026](https://drive.google.com/file/d/1OEd7wcb53HZ6YDLRKNdWmdPAVU7F3anq/view?usp=drive_link)
 
 ## Group Members
 ### Sylvie Alexander
 ### Shannon Boldt
-### Max Cook
-### Summer Dupree
-### Ayia Lindquist
-### Betty Poley
-### Bob Rabin
+### [Max Cook](https://github.com/maxwellCcook)
+### [Summer Dupree](https://www.linkedin.com/in/summer-dupree-2766b8248/)
+### [Ayia Lindquist](https://www.linkedin.com/in/ayia-lindquist/)
+### [Betty Poley](https://www.linkedin.com/in/poley-betty-b9018777/)
+### [Bob Rabin](https://www.cira.colostate.edu/staff/rabin-robert-m/)
 ### [Darryl Reano](https://www.linkedin.com/in/darrylreano/), Co-Investigator (Indigenous Data Sovereignty). [Website](https://sites.google.com/view/iaims/home) 
-### Cynthia Sanders
-### Jim Sanovia
-### Shawn Serbin
+### [Cynthia Sanders](https://www.linkedin.com/in/cynthia-sanders-5a235840/)
+### [Jim Sanovia](https://www.linkedin.com/in/sanovia/)
+### [Shawn Serbin](https://www.linkedin.com/in/shawn-serbin-b6107714/)
 ### Vanessa Taho
 ### Gabriel Talayumptewa
-### Joni Tobacco
+### [Joni Tobacco](https://www.linkedin.com/in/joni-tobacco-aa2b6763/)
 ### Sam Toledo
-### Elisha Yellow Thunder
+### [Elisha Yellow Thunder](https://www.linkedin.com/in/elisha-l-wakinyan-zi-yellow-thunder-68964a4b/)
 
-
+[Long Biographies for our Team](https://github.com/CU-ESIIL/Public-Observing-Unci-Maka/blob/main/BIOS.md)
 
 
 
