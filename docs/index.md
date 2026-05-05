@@ -215,6 +215,13 @@ The website is built from the docs/ folder. Every time you change a file there, 
 6.	Click Commit changes.
 That’s it! In about a minute, refresh the website link and you’ll see your changes.
 
+# Common Tasks
+
+### Add a new webpage:
+Create a new .md file inside docs/ (like methods.md). It will become a new page on your site.
+
+### Add a picture:
+Put the file in docs/assets/ and add it to a page with ![caption](assets/filename.png).
 
 ### Instructions for working in <ins>CyVerse</ins>
 
