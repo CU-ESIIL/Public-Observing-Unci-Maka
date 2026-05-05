@@ -57,7 +57,7 @@ A repository for the development of code and workflows for the Observing Unci Ma
 
 ***
 
-### Instructions for setting up <ins>local</ins> Python environment and Git commands
+### Instructions for setting up <ins>local</ins> Python environment and Git commands (from Max)
 > Instructions adapted from [Earth Data Science.org](https://www.earthdatascience.org/workshops/setup-earth-analytics-python/setup-git-bash-conda/)
 
 1. **Installing Python on your personal computer from _miniconda_**
