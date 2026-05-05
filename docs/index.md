@@ -203,6 +203,19 @@ Cloning the repository essentially sets up a folder on your local machine that i
 
 **To push local changes to GitHub:\**
 
+# How to Update the Website
+The website is built from the docs/ folder. Every time you change a file there, the website updates automatically.
+
+## Step by Step
+1.	In the repository, click the docs/ folder.
+2.	Click on index.md. This is the home page of your website.
+3.	In the top right, click the pencil icon (✏️) to edit.
+4.	Change the text to describe your project (for example, add your team’s name and a short description of what you’re studying).
+5.	Scroll down. In the Commit changes box, write a short message like updated homepage with project info.
+6.	Click Commit changes.
+That’s it! In about a minute, refresh the website link and you’ll see your changes.
+
+
 ### Instructions for working in <ins>CyVerse</ins>
 
 1. Login to [CyVerse](https://cyverse.org/) if you have an account, or email maxwell.cook@colorado.edu for access
