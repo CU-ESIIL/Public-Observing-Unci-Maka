@@ -277,9 +277,11 @@ As a new working group, you'll want to make this repository your own. Here's how
 
 8. **Create Contribution Guidelines**: Establish a CONTRIBUTING.md file with instructions for members on how to propose changes, submit issues, and contribute code.
 
-9. **Review and Merge Workflow**: Decide on a workflow for reviewing and merging changes. Will you use branch protection? Who will have merge privileges? Document this process to avoid confusion.
+9. HI SHANNON!!!
 
-10. **Establish Communication Channels**: Beyond GitHub, set up additional communication channels like Slack, Discord, or email lists for quick and informal discussions.
+10. **Review and Merge Workflow**: Decide on a workflow for reviewing and merging changes. Will you use branch protection? Who will have merge privileges? Document this process to avoid confusion.
+
+11. **Establish Communication Channels**: Beyond GitHub, set up additional communication channels like Slack, Discord, or email lists for quick and informal discussions.
 
 Remember, the goal is to make your repository clear, accessible, and useful for all current and future members of your working group. Happy researching!
 
