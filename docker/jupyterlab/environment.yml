@@ -39,3 +39,4 @@ dependencies:
   - pip
   - pip:
       - localtileserver
+      - dataretrieval     # USGS NWIS discharge data (used in notebook 00)
