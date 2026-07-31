@@ -10,11 +10,12 @@ Each CyVerse session runs in a fresh container. Here is what **persists** betwee
 |---|---|
 | Files in `/home/jovyan/data-store/` | Yes — this is your permanent storage |
 | Cloned repositories (if saved to data-store) | Yes |
-| Conda environments (installed to `/opt/conda/envs/`) | **No** — must be recreated each session |
+| Conda environments you create in `/opt/conda/envs/` | **No** — but the project uses an overlay venv in `data-store` to avoid this |
+| Environments baked into the image (e.g. `HYR-SENSE`) | Yes |
 | Jupyter kernel registrations | **No** — must be re-registered each session |
 | GitHub SSH credentials | **No** — must be recreated each session |
 
-The setup steps below take about 5–10 minutes and must be repeated at the start of each new CyVerse analysis.
+The setup below is one command. The first run takes a couple of minutes; later sessions take seconds because everything except the kernel registration lives in `data-store`.
 
 ---
 
@@ -71,7 +72,7 @@ Before your first session, make sure you have:
 
 ## Step 3: Set Up the Project Environment
 
-Open a terminal in JupyterLab (**File → New → Terminal**) and run the following commands. These must be run at the start of every new CyVerse session.
+Open a terminal in JupyterLab (**File → New → Terminal**).
 
 **1. Clone the repository** (only needed if not already in your data-store):
 ```bash
@@ -86,31 +87,55 @@ cd ~/data-store/Public-Observing-Unci-Maka
 git pull
 ```
 
-**2. Limit extraction threads** (prevents out-of-memory crashes during install):
+**2. Run the setup script**:
 ```bash
-conda config --set fetch_threads 1
-conda config --set extract_threads 1
+bash ~/data-store/Public-Observing-Unci-Maka/scripts/setup_cyverse.sh
 ```
 
-**3. Create the conda environment**:
+**3. Refresh the browser tab** (JupyterLab only fetches the kernel list on page load), then pick **"Python (Unci Maka / VBET)"** from the kernel picker.
+
+That is the whole setup. Re-run the script at the start of each session — the first run takes a couple of minutes, later ones take seconds.
+
+### What the script does, and why
+
+It builds a small **overlay virtualenv** on top of the image's existing `HYR-SENSE` conda
+environment, rather than creating a new environment from `environment.yml`.
+
+| | Approach |
+|---|---|
+| `mamba env create -f environment.yml` | Rebuilds the entire geospatial stack every session (10–20 min), and regularly runs the container out of memory. |
+| `pip install` into `HYR-SENSE` | Does not persist — `/opt/conda` is wiped each session — and mutates an environment shared with other HYR-SENSE users. |
+| **Overlay venv (what the script does)** | Inherits everything from `HYR-SENSE` via `--system-site-packages`, installs only the few missing packages into `~/data-store/envs/unci-maka`, which **persists**. |
+
+Specifically it:
+
+1. Locates the base conda env (`HYR-SENSE` by default) and reports which packages it already has.
+2. Creates or reuses `~/data-store/envs/unci-maka`.
+3. `pip install`s only what is missing — typically `whitebox`, `pynhd`, `dataretrieval`.
+4. Downloads the ~200 MB WhiteboxTools binary **once** into `~/data-store/bin/WBT`.
+5. Registers the Jupyter kernel with `PROJ_DATA`, `GDAL_DATA`, `WBT_PATH` and `VBET_DATA_DIR` baked into the kernel spec.
+6. Verifies the result — including resolving `EPSG:32613`, the exact call that fails when PROJ is misconfigured.
+
+Only step 5 genuinely has to repeat each session (kernel registrations are not persistent);
+everything else is detected as already-done and skipped.
+
+### Using a different base environment
+
 ```bash
-mamba env create -f environment.yml
+BASE_ENV=some-other-env bash scripts/setup_cyverse.sh
 ```
+If the base name is wrong the script lists the available environments and stops. To rebuild the
+overlay from scratch, add `--recreate`.
 
-This takes several minutes. If you see `EnvironmentNameNotFound` when activating later, this step did not complete — run it again.
+### Where things are written
 
-**4. Register the kernel** (the `--env` flags prevent PROJ/CRS errors in the notebooks):
-```bash
-conda activate unci-maka-py
-python -m ipykernel install --user \
-  --name unci-maka-py \
-  --display-name "Python (unci-maka-py)" \
-  --env PROJ_DATA /opt/conda/envs/unci-maka-py/share/proj \
-  --env PROJ_LIB /opt/conda/envs/unci-maka-py/share/proj \
-  --env GDAL_DATA /opt/conda/envs/unci-maka-py/share/gdal
-```
-
-**5. Refresh JupyterLab** (click the browser refresh button), then open a notebook and select **"Python (unci-maka-py)"** from the kernel picker.
+| Path | Persists? |
+|---|---|
+| `~/data-store/envs/unci-maka` — overlay venv | Yes |
+| `~/data-store/bin/WBT` — WhiteboxTools binary | Yes |
+| `~/data-store/unci-maka-data` — DEM, HAND, VBET outputs (`VBET_DATA_DIR`) | Yes |
+| `/opt/conda/envs/HYR-SENSE` — base env | Yes (baked into the image) |
+| Jupyter kernel registration | **No** — re-run the script |
 
 ---
 
@@ -170,16 +195,34 @@ GitHub SSH credentials are tied to each CyVerse container and must be recreated 
 
 ## Troubleshooting
 
-### `EnvironmentNameNotFound: Could not find conda environment: unci-maka-py`
-The environment was not created or was lost when the container was recycled. Re-run Step 3 from the beginning.
-
-### Out-of-memory / segfault during `mamba env create`
-Make sure you ran the thread-limiting commands in Step 3.2 before running `mamba env create`. If it still crashes, try:
+### Kernel "Python (Unci Maka / VBET)" is missing, or the notebook cannot import `whitebox`
+Kernel registrations do not survive a session restart. Re-run:
 ```bash
-mamba create -n unci-maka-py python=3.12 -y
-conda activate unci-maka-py
-mamba install --file environment.yml -y
+bash ~/data-store/Public-Observing-Unci-Maka/scripts/setup_cyverse.sh
 ```
+then **refresh the browser tab**.
+
+### `ERROR Could not find /opt/conda/envs/HYR-SENSE/bin/python`
+The image does not have an environment by that name. The script prints the available
+environments — re-run with the right one:
+```bash
+BASE_ENV=<name-from-the-list> bash scripts/setup_cyverse.sh
+```
+
+### The overlay venv broke after a CyVerse image update
+A venv built against a previous container's conda env can dangle. Rebuild it:
+```bash
+bash scripts/setup_cyverse.sh --recreate
+```
+
+### Building the standalone environment instead
+`environment.yml` still describes a complete, self-contained env if you need one
+(local machines, or a CyVerse image without a usable base env):
+```bash
+conda config --set fetch_threads 1 && conda config --set extract_threads 1
+mamba env create -f environment.yml
+```
+This is slow on CyVerse and can exhaust container memory — prefer the overlay.
 
 ### `CRSError: Invalid projection` or `pyproj unable to set PROJ database path`
 The PROJ environment variables are not being passed to the kernel. Re-run the `ipykernel install` command from Step 3.4 (which embeds the paths in the kernel spec), then restart the kernel.

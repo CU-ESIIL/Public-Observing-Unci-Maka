@@ -5,8 +5,8 @@ ESIIL working group bringing together Tribal members, scientists, and NASA resea
 
 ## Repo Structure
 ```
-notebooks/          # Main project Jupyter notebooks (00–02 + STELLA/EMIT exploratories)
-data/               # Study area boundaries (CravenCanyon_StudyArea.gpkg, GCP points)
+notebooks/          # Main project Jupyter notebooks (00, 01a, 01–06 + STELLA/EMIT exploratories)
+data/               # Study area boundaries + VBET intermediates (gitignored via *data/)
 tools/emit/         # NASA EMIT data tools (vendored, not a submodule)
 tools/STELLA/       # STELLA-Q2 field spectrometer CSV outputs
 docs/resources/     # mkdocs site source — cyverse_basics.md is the key setup guide
@@ -24,32 +24,131 @@ requirements.txt    # Docs-only (mkdocs/GitHub Pages CI) — NOT the project env
 
 The two `environment.yml` files should stay in sync on core packages. The docker one additionally includes JupyterLab infrastructure packages (`nb_conda_kernels`, `papermill`, `jupyterlab-geojson`, `openssh`, etc.).
 
+> **Deliberate drift — do not "fix":** the root `environment.yml` has `whitebox`, the docker one
+> does not. The VBET rework needs WhiteboxTools, but the Docker image is not being rebuilt right
+> now. On CyVerse that gap is closed by `scripts/setup_cyverse.sh` (overlay venv, see below),
+> not by rebuilding the env. Add `whitebox` to `docker/jupyterlab/environment.yml` at the same
+> time as the next image rebuild.
+
+Note there is now a **fourth** environment in play on CyVerse that this repo does not define:
+`HYR-SENSE`, baked into the ESIIL image. It is the base the overlay venv layers on top of.
+
 ## Key Environment Decisions Made
 - **Slimmed root `environment.yml`** to ~23 packages (was 38). Removed transitive deps (shapely, pyproj, bokeh, fsspec, aiohttp, requests) and EMIT-only packages (panel, spectral, scikit-image, netCDF4, h5netcdf, s3fs, zarr, cartopy). These can be pip-installed separately when needed.
-- **`pynhd`, `py3dep`, `pysheds`** are all present and correct — core to the VBET/NHD workflow.
+- **`pynhd`, `py3dep`** are core to the NHD/DEM workflow. `py3dep` is now only for small AOIs — see the VBET section below.
+- **`whitebox`** (WhiteboxTools) is the hydrology engine for VBET, replacing `pysheds`. `pysheds` is kept in the env until the WBT path is validated end-to-end, then can be dropped.
 - **`localtileserver`** is pip-only (not on conda-forge).
 - **EMIT tools** (spectral, scikit-image, netCDF4, panel, s3fs) can be added with `pip install spectral scikit-image netCDF4 panel s3fs zarr` when running EMIT notebooks.
 
 ## CyVerse Deployment — Critical Facts
 - **Deployment**: Docker image built from `docker/jupyterlab/Dockerfile` → pushed to DockerHub → used by CyVerse "JupyterLab ESIIL" app.
 - **GitHub Actions**: `build-and-push-jupyterlab-image.yml` (manual trigger) builds/pushes the image. `gh-pages.yml` (push to main) deploys mkdocs site.
-- **Ephemeral containers**: `/opt/conda/envs/` does NOT persist between sessions. The conda env must be recreated every session.
-- **Persistent storage**: `/home/jovyan/data-store/` persists. Clone the repo there.
+- **Ephemeral containers**: envs *you create* in `/opt/conda/envs/` do NOT persist, and neither do `pip install`s into an existing env. Envs **baked into the image** (`HYR-SENSE`) do persist — that asymmetry is why the overlay venv works.
+- **Persistent storage**: `/home/jovyan/data-store/` persists. Clone the repo there, and keep envs/binaries/data there too.
+- **Kernel registrations never persist** — `scripts/setup_cyverse.sh` re-registers each session; that is the only step that genuinely must repeat.
 - **Memory constraint**: CyVerse containers have limited RAM. `mamba env create` with large envs segfaults. Fix: `conda config --set fetch_threads 1 && conda config --set extract_threads 1` before install.
 
 ## CyVerse Setup Sequence (Every Session)
 ```bash
 cd ~/data-store/Public-Observing-Unci-Maka && git pull
-conda config --set fetch_threads 1 && conda config --set extract_threads 1
-mamba env create -f environment.yml
-conda activate unci-maka-py
-python -m ipykernel install --user \
-  --name unci-maka-py \
-  --display-name "Python (unci-maka-py)" \
-  --env PROJ_DATA /opt/conda/envs/unci-maka-py/share/proj \
-  --env PROJ_LIB /opt/conda/envs/unci-maka-py/share/proj \
-  --env GDAL_DATA /opt/conda/envs/unci-maka-py/share/gdal
+bash scripts/setup_cyverse.sh
 ```
+Then refresh the browser tab and pick the "Python (Unci Maka / VBET)" kernel.
+
+**Do not `mamba env create -f environment.yml` on CyVerse.** It rebuilds the whole geospatial
+stack every session (10-20 min) and regularly OOMs the container. `environment.yml` is still the
+authoritative spec for local installs and for the Docker image.
+
+`scripts/setup_cyverse.sh` instead layers an overlay venv on the image's existing `HYR-SENSE`
+conda env:
+- `python -m venv --system-site-packages` inherits GDAL/geopandas/rasterio from HYR-SENSE.
+- The venv lives at `~/data-store/envs/unci-maka`, so pip installs **persist**; installing
+  directly into `/opt/conda/envs/HYR-SENSE` would not, and would mutate a shared env.
+- Only `whitebox`, `pynhd`, `dataretrieval` are typically missing and get installed.
+- WhiteboxTools binary -> `~/data-store/bin/WBT` (once), `VBET_DATA_DIR` ->
+  `~/data-store/unci-maka-data`.
+- Kernel spec carries `PROJ_DATA`/`GDAL_DATA` (pointing at the **base** env, not the venv),
+  `WBT_PATH`, and `VBET_DATA_DIR`.
+
+Override the base with `BASE_ENV=<name> bash scripts/setup_cyverse.sh`; rebuild with `--recreate`.
+
+### PROJ path resolution in the notebooks
+All three notebooks use a `_find_share()` helper that checks `sys.prefix` **then**
+`sys.base_prefix`. In an overlay venv `sys.prefix` is the venv, which has no `share/proj` — the
+data lives under the base conda env. Plain `sys.prefix` (the old code) silently sets a bad path.
+
+## VBET / Valley Bottom Pipeline (notebooks 00 → 01a → 01)
+
+Produces `data/cheyenne_valley_bottom.gpkg`, the riparian analysis extent that notebooks 02–06
+clip cottonwood classification to.
+
+| Notebook | Produces |
+|---|---|
+| `00_Study_Area-Cottonwoods.ipynb` | `cheyenne_corridor_aoi.gpkg` — corridor AOI + flowlines + gauges |
+| `01a_DEM_Prefetch.ipynb` | `cheyenne_dem_30m.tif`, `cheyenne_flowlines_vaa.gpkg`, persistent WBT binary |
+| `01_VBET_ValleyBottom.ipynb` | `cheyenne_valley_bottom.gpkg`, `cheyenne_valley_mask_30m.tif` |
+
+**Scale**: corridor AOI is ~6,225 km² over a 228 × 187 km envelope, 8,964 NHD reaches
+(17,361 km). At 30 m that is ~47 M cells.
+
+### DEM — do NOT use `py3dep.get_dem()` for the corridor
+`py3dep` hits the 3DEP **dynamic** service, which renders elevation on demand. It is fine for a
+few hundred km² and effectively unusable at corridor scale — this was the original bottleneck.
+Notebook 01a instead pulls **static staged 3DEP COG tiles** from the public USGS S3 bucket:
+```
+https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/{1|13}/TIFF/current/{tile}/USGS_{1|13}_{tile}.tif
+```
+`1` = 1 arc-sec (~30 m), `13` = 1/3 arc-sec (~10 m). Tiles are named by their **NW corner**
+(`n44w104` = lat 43–44, lon −104 to −103). The corridor needs 8 tiles at 30 m, ~415 MB total.
+Downloads are resumable and cached; `BuildVRT` + one `Warp` mosaics, reprojects to EPSG:32613,
+and clips in a single pass.
+
+### Hydrology — WhiteboxTools, not pysheds
+`pysheds` holds several full-grid float32 arrays in Python memory at once (~190 MB each at 30 m),
+which is the memory wall on CyVerse. WBT is a multithreaded Rust engine that streams to/from
+disk. Chain: `BreachDepressionsLeastCost` → `D8Pointer` → `D8FlowAccumulation` →
+`ExtractStreams` → `ElevationAboveStream` (HAND) → `Slope`. Breaching replaces the
+`fill_pits → fill_depressions → resolve_flats` chain and is the single largest speedup.
+
+**CyVerse gotcha**: `WhiteboxTools()` calls `download_wbt()` from its constructor, fetching a
+~200 MB binary into the `whitebox` package dir under `/opt/conda`, which does not persist.
+Two facts from the package source:
+- `download_wbt()` returns early if the **`WBT_PATH`** env var is set — set it *before*
+  constructing `WhiteboxTools`, or the download happens anyway.
+- `exe_path` is the **directory** holding `whitebox_tools` plus `plugins/` and `img/`, not the
+  executable's path. `set_whitebox_dir(d)` just assigns it. Copy the whole directory, not just
+  the binary, or plugin-backed tools fail to launch.
+
+Notebook 01a copies it to `~/data-store/bin/WBT` and chmods the binary and plugins; both
+notebooks then set `WBT_PATH` + `set_whitebox_dir()` when that path exists. Adding
+`export WBT_PATH=/home/jovyan/data-store/bin/WBT` to the shell profile makes it apply everywhere.
+
+### `VBET_DATA_DIR`
+All three notebooks resolve paths via `Path(os.environ.get("VBET_DATA_DIR", "../data"))`.
+On CyVerse export it to a `~/data-store/` path **before launching the kernel**, in every notebook,
+or the DEM mosaic is lost at session end:
+```bash
+export VBET_DATA_DIR=/home/jovyan/data-store/unci-maka-data
+```
+
+### Chunking
+Section 8 of notebook 01 has an optional HUC-8 chunked path (`USE_HUC_CHUNKING = True`), off by
+default — 30 m runs single-pass fine. It exists for small instances and for 10 m runs (~420 M
+cells). **Chunk by HUC, never by arbitrary tiles**: HUC boundaries are drainage divides, so no
+flow crosses them and D8 routing stays valid. Rectangular tiles sever contributing area and
+corrupt flow accumulation and HAND at every seam.
+
+### Bugs fixed in this rework (don't reintroduce)
+- Flowlines from notebook 00 carry only `nhdplus_comid`, no `totdasqkm`. The VBET drainage-area
+  classing silently fell through and assigned **every** reach to `medium` — the Cheyenne main
+  stem got headwater thresholds. 01a joins `pynhd.nhdplus_vaa()` on COMID to fix it.
+- `FLOW_ACCUM_THRESHOLD` was hardcoded to 500 cells and documented as "~50 km² at 10 m"; at 30 m
+  that is 450 km². It is now derived from `STREAM_INIT_KM2` and resolution.
+- The min-patch filter looped per connected component (`(labeled == i).sum()` over 47 M cells,
+  thousands of times). Now a single `np.bincount`.
+- Buffered flowlines were `union_all()`-ed before rasterizing. Rasterizing overlapping polygons
+  to the same burn value already unions them; the union was pure waste.
+- Output provenance recorded `gauge_id` even for full-corridor runs.
 
 ## Known Issues and Fixes
 ### PROJ/CRS Errors (`pyproj unable to set PROJ database path` / `CRSError: no database context`)
@@ -65,8 +164,15 @@ python -m ipykernel install --user \
 ### `mamba env create` Segfault / `std::bad_alloc`
 Set thread limits before running: `conda config --set fetch_threads 1 && conda config --set extract_threads 1`
 
-### `EnvironmentNameNotFound: unci-maka-py`
-Conda env doesn't persist between CyVerse sessions. Re-run `mamba env create -f environment.yml`.
+### `EnvironmentNameNotFound` / kernel missing after a session restart
+Expected — kernel registrations never persist. Re-run `bash scripts/setup_cyverse.sh` and refresh
+the browser tab. The overlay venv and WBT binary in `~/data-store/` are detected and reused, so
+this takes seconds, not minutes.
+
+### `ERROR Could not find /opt/conda/envs/HYR-SENSE/bin/python`
+The image has no env by that name. The script prints the available envs; re-run with
+`BASE_ENV=<name> bash scripts/setup_cyverse.sh`. If the overlay dangles after an image update,
+rebuild it with `--recreate`.
 
 ## Docs Site
 - URL: https://cu-esiil.github.io/Public-Observing-Unci-Maka

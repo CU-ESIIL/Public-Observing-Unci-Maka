@@ -8,6 +8,33 @@
 # data
 *data/
 
+# Large geospatial / EO data products.
+# GitHub hard-rejects any file over 100 MB, and these routinely run to GB
+# (a single EMIT L2A granule is ~1.7 GB). Keep them in the CyVerse data store
+# or Box, not in git.
+*.nc
+*.nc4
+*.h5
+*.hdf
+*.he5
+*.zarr/
+*.tif
+*.tiff
+*.img
+*.vrt
+*.SAFE/
+
+# Exception: small basemaps/figures committed under docs/ are intentional.
+# NOTE: gitignore has no trailing-comment support — a comment after a pattern
+# becomes part of the pattern. Keep comments on their own line.
+!docs/**/*.tif
+!docs/**/*.tiff
+
+# Request / tile caches
+notebooks/cache/
+*.sqlite
+*.sqlite3
+
 # Session Data files
 .RData
 .RDataTmp

@@ -20,9 +20,11 @@ dependencies:
   - hvplot          # pulls in bokeh
   - earthaccess     # pulls in requests, fsspec, aiohttp
   - scipy           # spatial operations (label, binary_fill_holes)
-  - pynhd           # NHDPlus flowlines via NLDI
-  - py3dep          # USGS 3DEP DEM access
-  - pysheds         # DEM hydrological processing + HAND computation
+  - pynhd           # NHDPlus flowlines via NLDI + VAA (drainage area)
+  - py3dep          # USGS 3DEP DEM access (small AOIs only; 01a uses static S3 tiles)
+  - whitebox        # WhiteboxTools — hydrology engine for VBET (noarch wrapper;
+                    # downloads its ~200 MB Rust binary on first use, see 01a)
+  - pysheds         # legacy hydrology backend — kept until the WBT path is validated
   - pip
   - pip:
       - localtileserver
