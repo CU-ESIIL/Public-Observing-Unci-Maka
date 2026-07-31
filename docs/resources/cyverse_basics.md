@@ -10,7 +10,7 @@ Each CyVerse session runs in a fresh container. Here is what **persists** betwee
 |---|---|
 | Files in `/home/jovyan/data-store/` | Yes — this is your permanent storage |
 | Cloned repositories (if saved to data-store) | Yes |
-| Conda environments you create in `/opt/conda/envs/` | **No** — but the project uses an overlay venv in `data-store` to avoid this |
+| Conda environments in `/opt/conda/envs/` | **No** — so this project builds its env at a `--prefix` inside `data-store` instead |
 | Environments baked into the image (e.g. `HYR-SENSE`) | Yes |
 | Jupyter kernel registrations | **No** — must be re-registered each session |
 | GitHub SSH credentials | **No** — must be recreated each session |
@@ -230,15 +230,13 @@ bash ~/data-store/Public-Observing-Unci-Maka/scripts/setup_cyverse.sh
 ```
 then **refresh the browser tab**.
 
-### `ERROR Could not find /opt/conda/envs/HYR-SENSE/bin/python`
-The image does not have an environment by that name. The script prints the available
-environments — re-run with the right one:
-```bash
-BASE_ENV=<name-from-the-list> bash scripts/setup_cyverse.sh
-```
+### `_ARRAY_API not found` or `cannot import name 'ClientConnectorDNSError'`
+You are running on the **HYR-SENSE kernel**, not the project kernel. Switch to
+**"Python (Unci Maka / VBET)"** via *Kernel -> Change Kernel*, then restart the kernel.
+See "Why not layer on top of HYR-SENSE" above for why these two errors appear together.
 
-### The overlay venv broke after a CyVerse image update
-A venv built against a previous container's conda env can dangle. Rebuild it:
+### The environment is broken or half-built
+Rebuild it from scratch (this discards and re-solves; the WBT binary and your data are kept):
 ```bash
 bash scripts/setup_cyverse.sh --recreate
 ```

@@ -170,7 +170,7 @@ Set thread limits before running: `conda config --set fetch_threads 1 && conda c
 
 ### `EnvironmentNameNotFound` / kernel missing after a session restart
 Expected — kernel registrations never persist. Re-run `bash scripts/setup_cyverse.sh` and refresh
-the browser tab. The overlay venv and WBT binary in `~/data-store/` are detected and reused, so
+the browser tab. The conda env and WBT binary in `~/data-store/` are detected and reused, so
 this takes seconds, not minutes.
 
 ### `ERROR Could not find /opt/conda/envs/HYR-SENSE/bin/python`
