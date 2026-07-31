@@ -26,12 +26,13 @@ The two `environment.yml` files should stay in sync on core packages. The docker
 
 > **Deliberate drift — do not "fix":** the root `environment.yml` has `whitebox`, the docker one
 > does not. The VBET rework needs WhiteboxTools, but the Docker image is not being rebuilt right
-> now. On CyVerse that gap is closed by `scripts/setup_cyverse.sh` (overlay venv, see below),
-> not by rebuilding the env. Add `whitebox` to `docker/jupyterlab/environment.yml` at the same
-> time as the next image rebuild.
+> now. On CyVerse that gap is closed by `scripts/setup_cyverse.sh`, which builds the env from
+> the root `environment.yml` into data-store. Add `whitebox` to
+> `docker/jupyterlab/environment.yml` at the same time as the next image rebuild.
 
-Note there is now a **fourth** environment in play on CyVerse that this repo does not define:
-`HYR-SENSE`, baked into the ESIIL image. It is the base the overlay venv layers on top of.
+Note there is a **fourth** environment present on CyVerse that this repo does not define:
+`hyr-sense`, baked into the ESIIL image. It is Python 3.10 with an older pinned stack and is
+**not used** by these notebooks — see the warning below.
 
 ## Key Environment Decisions Made
 - **Slimmed root `environment.yml`** to ~23 packages (was 38). Removed transitive deps (shapely, pyproj, bokeh, fsspec, aiohttp, requests) and EMIT-only packages (panel, spectral, scikit-image, netCDF4, h5netcdf, s3fs, zarr, cartopy). These can be pip-installed separately when needed.
@@ -43,7 +44,7 @@ Note there is now a **fourth** environment in play on CyVerse that this repo doe
 ## CyVerse Deployment — Critical Facts
 - **Deployment**: Docker image built from `docker/jupyterlab/Dockerfile` → pushed to DockerHub → used by CyVerse "JupyterLab ESIIL" app.
 - **GitHub Actions**: `build-and-push-jupyterlab-image.yml` (manual trigger) builds/pushes the image. `gh-pages.yml` (push to main) deploys mkdocs site.
-- **Ephemeral containers**: envs *you create* in `/opt/conda/envs/` do NOT persist, and neither do `pip install`s into an existing env. Envs **baked into the image** (`HYR-SENSE`) do persist — that asymmetry is why the overlay venv works.
+- **Ephemeral containers**: envs *you create* in `/opt/conda/envs/` do NOT persist, and neither do `pip install`s into an existing env. But conda's `--prefix` can place an env anywhere — putting it in `~/data-store/` makes it persist. That is the whole trick.
 - **Persistent storage**: `/home/jovyan/data-store/` persists. Clone the repo there, and keep envs/binaries/data there too.
 - **Kernel registrations never persist** — `scripts/setup_cyverse.sh` re-registers each session; that is the only step that genuinely must repeat.
 - **Memory constraint**: CyVerse containers have limited RAM. `mamba env create` with large envs segfaults. Fix: `conda config --set fetch_threads 1 && conda config --set extract_threads 1` before install.
@@ -54,10 +55,6 @@ cd ~/data-store/Public-Observing-Unci-Maka && git pull
 bash scripts/setup_cyverse.sh
 ```
 Then refresh the browser tab and pick the "Python (Unci Maka / VBET)" kernel.
-
-**Do not `mamba env create -f environment.yml` on CyVerse.** It rebuilds the whole geospatial
-stack every session (10-20 min) and regularly OOMs the container. `environment.yml` is still the
-authoritative spec for local installs and for the Docker image.
 
 `scripts/setup_cyverse.sh` builds a **self-contained conda env at a prefix in data-store**:
 `mamba env create --prefix ~/data-store/envs/unci-maka -f environment.yml`. Conda envs do not
@@ -80,8 +77,9 @@ Override the location with `ENV_DIR=<path>`; rebuild with `--recreate`.
 
 ### PROJ path resolution in the notebooks
 All three notebooks use a `_find_share()` helper that checks `sys.prefix` **then**
-`sys.base_prefix`. In an overlay venv `sys.prefix` is the venv, which has no `share/proj` — the
-data lives under the base conda env. Plain `sys.prefix` (the old code) silently sets a bad path.
+`sys.base_prefix`, and verifies the directory exists. With the standalone conda env `sys.prefix`
+is correct on its own; the fallback is retained because it is free and makes the notebooks work
+under a venv too. The kernel spec also sets `PROJ_DATA`/`GDAL_DATA` explicitly.
 
 ## VBET / Valley Bottom Pipeline (notebooks 00 → 01a → 01)
 
