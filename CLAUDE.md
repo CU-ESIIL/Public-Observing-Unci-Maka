@@ -173,10 +173,13 @@ Expected — kernel registrations never persist. Re-run `bash scripts/setup_cyve
 the browser tab. The conda env and WBT binary in `~/data-store/` are detected and reused, so
 this takes seconds, not minutes.
 
-### `ERROR Could not find /opt/conda/envs/HYR-SENSE/bin/python`
-The image has no env by that name. The script prints the available envs; re-run with
-`BASE_ENV=<name> bash scripts/setup_cyverse.sh`. If the overlay dangles after an image update,
-rebuild it with `--recreate`.
+### `_ARRAY_API not found` / `cannot import name 'ClientConnectorDNSError'`
+The notebook is running on the **hyr-sense kernel**, not `unci-maka`. Switch kernels and restart.
+These two errors always appear together and always mean mixed-provenance site-packages.
+
+### Environment half-built or broken
+`bash scripts/setup_cyverse.sh --recreate` re-solves from scratch. The WBT binary and
+`VBET_DATA_DIR` live outside the env and are preserved.
 
 ## Docs Site
 - URL: https://cu-esiil.github.io/Public-Observing-Unci-Maka
