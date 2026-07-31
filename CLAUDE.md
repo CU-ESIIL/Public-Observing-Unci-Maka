@@ -127,13 +127,17 @@ Notebook 01a copies it to `~/data-store/bin/WBT` and chmods the binary and plugi
 notebooks then set `WBT_PATH` + `set_whitebox_dir()` when that path exists. Adding
 `export WBT_PATH=/home/jovyan/data-store/bin/WBT` to the shell profile makes it apply everywhere.
 
-### `VBET_DATA_DIR`
-All three notebooks resolve paths via `Path(os.environ.get("VBET_DATA_DIR", "../data"))`.
-On CyVerse export it to a `~/data-store/` path **before launching the kernel**, in every notebook,
-or the DEM mosaic is lost at session end:
-```bash
-export VBET_DATA_DIR=/home/jovyan/data-store/unci-maka-data
-```
+### Data directory resolution
+All three notebooks call `_resolve_data_dir()`, which prefers `$VBET_DATA_DIR`, else walks up
+from the working directory to the repo root (`.git` / `environment.yml`) and returns
+`<repo>/data`, else falls back to `../data`. Walking up makes it cwd-independent, so it works
+from `notebooks/`, from the repo root, and under papermill.
+
+**Do not set `VBET_DATA_DIR` in the kernel spec.** On CyVerse the repo is cloned into
+`~/data-store`, so `<repo>/data` is already persistent — no redirect is needed. An earlier
+version of `setup_cyverse.sh` pointed it at a fresh empty directory, which overrode the repo
+path and caused `cheyenne_corridor_aoi.gpkg not found` while the file sat in the repo. Set it
+manually only to relocate the big rasters somewhere else.
 
 ### Chunking
 Section 8 of notebook 01 has an optional HUC-8 chunked path (`USE_HUC_CHUNKING = True`), off by

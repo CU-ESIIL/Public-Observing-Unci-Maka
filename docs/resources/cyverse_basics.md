@@ -119,7 +119,7 @@ Specifically it:
    geospatial stack, `pyproj.CRS.from_epsg(32613)`, and `pynhd` (which pulls aiohttp). A broken
    env never reaches a notebook.
 4. Downloads the ~200 MB WhiteboxTools binary once into `~/data-store/bin/WBT`.
-5. Registers the kernel with `PROJ_DATA`, `GDAL_DATA`, `WBT_PATH`, `VBET_DATA_DIR` baked in, and
+5. Registers the kernel with `PROJ_DATA`, `GDAL_DATA` and `WBT_PATH` baked in, and
    prunes dead kernels that point into `data-store/envs` (image kernels are never touched).
 
 Only step 5 repeats each session.
@@ -161,7 +161,7 @@ To rebuild from scratch, add `--recreate`.
 |---|---|
 | `~/data-store/envs/unci-maka` — conda env | Yes |
 | `~/data-store/bin/WBT` — WhiteboxTools binary | Yes |
-| `~/data-store/unci-maka-data` — DEM, HAND, VBET outputs (`VBET_DATA_DIR`) | Yes |
+| `<repo>/data` — DEM, HAND, VBET outputs (repo is in data-store) | Yes |
 | `/opt/conda/envs/hyr-sense` — image env (**not used** by these notebooks) | Yes |
 | Jupyter kernel registration | **No** — re-run the script |
 

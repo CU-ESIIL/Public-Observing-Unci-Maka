@@ -37,7 +37,6 @@ set -euo pipefail
 DATA_STORE="${DATA_STORE:-$HOME/data-store}"
 ENV_DIR="${ENV_DIR:-$DATA_STORE/envs/unci-maka}"
 WBT_DIR="${WBT_DIR:-$DATA_STORE/bin/WBT}"
-VBET_DATA_DIR="${VBET_DATA_DIR:-$DATA_STORE/unci-maka-data}"
 KERNEL_NAME="unci-maka"
 KERNEL_DISPLAY="Python (Unci Maka / VBET)"
 
@@ -194,16 +193,20 @@ say "5. Registering the Jupyter kernel"
 # Kernel registrations live in ~/.local/share/jupyter and do NOT persist —
 # this is the only step that genuinely has to repeat each session.
 [[ -d "$PROJ_SHARE" ]] || warn "no $PROJ_SHARE — PROJ errors are likely"
-mkdir -p "$VBET_DATA_DIR"
 
+# NOTE: deliberately NOT setting VBET_DATA_DIR here.
+# The notebooks resolve their data dir by walking up to the repo root, and the
+# repo is cloned into ~/data-store — so <repo>/data is already persistent.
+# An earlier version pointed VBET_DATA_DIR at a fresh empty directory, which
+# overrode that and produced "cheyenne_corridor_aoi.gpkg not found" while the
+# file sat in the repo all along. Set it manually only to relocate the rasters.
 "$ENV_PY" -m ipykernel install --user \
     --name "$KERNEL_NAME" \
     --display-name "$KERNEL_DISPLAY" \
     --env PROJ_DATA "$PROJ_SHARE" \
     --env PROJ_LIB  "$PROJ_SHARE" \
     --env GDAL_DATA "$GDAL_SHARE" \
-    --env WBT_PATH  "$WBT_DIR" \
-    --env VBET_DATA_DIR "$VBET_DATA_DIR" >/dev/null
+    --env WBT_PATH  "$WBT_DIR" >/dev/null
 ok "kernel '$KERNEL_DISPLAY' registered"
 
 # A kernel left over from the old overlay venv still shows in the picker and is
@@ -236,7 +239,7 @@ $(printf '\033[1m== Done\033[0m')
 
   Environment   : $ENV_DIR  (persists)
   WhiteboxTools : $WBT_DIR  (persists)
-  Notebook data : $VBET_DATA_DIR  (persists)
+  Notebook data : $REPO_ROOT/data  (persists — the repo is in data-store)
   Kernel        : "$KERNEL_DISPLAY"  (re-run this script each session)
 
 Next:
