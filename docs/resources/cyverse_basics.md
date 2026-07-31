@@ -98,43 +98,71 @@ That is the whole setup. Re-run the script at the start of each session — the 
 
 ### What the script does, and why
 
-It builds a small **overlay virtualenv** on top of the image's existing `HYR-SENSE` conda
-environment, rather than creating a new environment from `environment.yml`.
+It builds a **self-contained conda environment from `environment.yml` at a prefix inside
+`~/data-store`**, then registers it as a Jupyter kernel.
+
+Conda environments do not have to live in `/opt/conda/envs`. `--prefix` puts one anywhere, so
+placing it in `data-store` makes it persist across sessions. It is built **once** (10–20 minutes)
+and reused forever after.
 
 | | Approach |
 |---|---|
-| `mamba env create -f environment.yml` | Rebuilds the entire geospatial stack every session (10–20 min), and regularly runs the container out of memory. |
-| `pip install` into `HYR-SENSE` | Does not persist — `/opt/conda` is wiped each session — and mutates an environment shared with other HYR-SENSE users. |
-| **Overlay venv (what the script does)** | Inherits everything from `HYR-SENSE` via `--system-site-packages`, installs only the few missing packages into `~/data-store/envs/unci-maka`, which **persists**. |
+| `mamba env create` into `/opt/conda/envs` | Self-consistent, but wiped every session — 10–20 min each time. |
+| A venv with `--system-site-packages` over `HYR-SENSE` | **Does not work** — see below. |
+| **`mamba env create --prefix ~/data-store/envs/unci-maka`** | Self-consistent *and* persistent. Built once. |
 
 Specifically it:
 
-1. Locates the base conda env (`HYR-SENSE` by default) and reports which packages it already has.
-2. Creates or reuses `~/data-store/envs/unci-maka`.
-3. `pip install`s only what is missing — typically `whitebox`, `pynhd`, `dataretrieval`.
-4. Downloads the ~200 MB WhiteboxTools binary **once** into `~/data-store/bin/WBT`.
-5. Registers the Jupyter kernel with `PROJ_DATA`, `GDAL_DATA`, `WBT_PATH` and `VBET_DATA_DIR` baked into the kernel spec.
-6. Verifies the result — including resolving `EPSG:32613`, the exact call that fails when PROJ is misconfigured.
+1. Removes any leftover venv at the target path from the older, broken approach.
+2. Builds the conda env from `environment.yml` (skipped if it already exists).
+3. **Verifies the stack before registering the kernel** — numpy/pandas/pyarrow ABI, the
+   geospatial stack, `pyproj.CRS.from_epsg(32613)`, and `pynhd` (which pulls aiohttp). A broken
+   env never reaches a notebook.
+4. Downloads the ~200 MB WhiteboxTools binary once into `~/data-store/bin/WBT`.
+5. Registers the kernel with `PROJ_DATA`, `GDAL_DATA`, `WBT_PATH`, `VBET_DATA_DIR` baked in, and
+   prunes dead kernels that point into `data-store/envs` (image kernels are never touched).
 
-Only step 5 genuinely has to repeat each session (kernel registrations are not persistent);
-everything else is detected as already-done and skipped.
+Only step 5 repeats each session.
 
-### Using a different base environment
+### Why not layer on top of HYR-SENSE
+
+An earlier version of this script built a venv with `--system-site-packages` on top of the
+image's `HYR-SENSE` environment, to avoid rebuilding the geospatial stack. **That does not
+work**, and it fails in two opposite directions at the same time:
+
+* `pip` installs a **new** NumPy into the venv. Venv `site-packages` shadows the base env, so the
+  new NumPy sits in front of HYR-SENSE's `pandas` and `pyarrow`, which are compiled against the
+  NumPy 1.x ABI:
+  ```
+  AttributeError: _ARRAY_API not found
+  ```
+* `pip` simultaneously **skips** upgrading `aiohttp`, because HYR-SENSE's older copy appears to
+  satisfy the requirement. Imports then resolve to a version missing newer symbols:
+  ```
+  ImportError: cannot import name 'ClientConnectorDNSError' from 'aiohttp'
+  ```
+
+HYR-SENSE is Python 3.10 with a pinned older stack; this project needs a modern one. A
+site-packages tree with mixed provenance cannot be made consistent by installing more things into
+it. Use the standalone environment, and **do not run these notebooks on the HYR-SENSE kernel**.
+
+### Using a different environment location
 
 ```bash
-BASE_ENV=some-other-env bash scripts/setup_cyverse.sh
+ENV_DIR=~/data-store/envs/somewhere-else bash scripts/setup_cyverse.sh
 ```
-If the base name is wrong the script lists the available environments and stops. To rebuild the
-overlay from scratch, add `--recreate`.
+To rebuild from scratch, add `--recreate`.
+
+### Using a different base environment
 
 ### Where things are written
 
 | Path | Persists? |
 |---|---|
-| `~/data-store/envs/unci-maka` — overlay venv | Yes |
+| `~/data-store/envs/unci-maka` — conda env | Yes |
 | `~/data-store/bin/WBT` — WhiteboxTools binary | Yes |
 | `~/data-store/unci-maka-data` — DEM, HAND, VBET outputs (`VBET_DATA_DIR`) | Yes |
-| `/opt/conda/envs/HYR-SENSE` — base env | Yes (baked into the image) |
+| `/opt/conda/envs/hyr-sense` — image env (**not used** by these notebooks) | Yes |
 | Jupyter kernel registration | **No** — re-run the script |
 
 ---

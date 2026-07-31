@@ -7,32 +7,42 @@
 #     bash ~/data-store/Public-Observing-Unci-Maka/scripts/setup_cyverse.sh
 #
 # WHAT IT DOES
-#   Builds (or reuses) a small overlay virtualenv on top of an existing conda
-#   env — by default HYR-SENSE — and registers it as a Jupyter kernel.
+#   Builds a self-contained conda environment from environment.yml at a PREFIX
+#   inside ~/data-store, then registers it as a Jupyter kernel.
 #
-# WHY AN OVERLAY INSTEAD OF `mamba env create`
-#   * HYR-SENSE is baked into the CyVerse image, so it survives session
-#     restarts and already has the heavy geospatial stack (GDAL, geopandas,
-#     rasterio, ...). Rebuilding all that from environment.yml costs 10-20
-#     minutes of every session and regularly OOMs the container.
-#   * `pip install` straight into /opt/conda/envs/HYR-SENSE does NOT persist
-#     (the container filesystem is ephemeral) and would mutate an environment
-#     shared with other HYR-SENSE users.
-#   * A venv created with --system-site-packages inherits everything from
-#     HYR-SENSE but writes new packages into ~/data-store, which DOES persist.
-#     First run takes a couple of minutes; later sessions are seconds.
+# WHY A PREFIX ENV IN data-store
+#   Conda environments do not have to live in /opt/conda/envs. `--prefix` puts
+#   one anywhere, so putting it in ~/data-store makes it persist across
+#   sessions. It is built ONCE (10-20 min) and reused forever after; only the
+#   kernel registration has to repeat each session, which takes seconds.
 #
-# IDEMPOTENT. Safe to re-run. Pass --recreate to rebuild the overlay.
+# WHY NOT LAYER ON HYR-SENSE
+#   An earlier version of this script built a venv with --system-site-packages
+#   on top of HYR-SENSE. That does not work, and the failure is instructive:
+#     * pip installs a NEW numpy into the venv, which shadows HYR-SENSE's numpy
+#       but NOT its pandas/pyarrow, which are compiled against the old ABI:
+#           AttributeError: _ARRAY_API not found
+#     * pip simultaneously SKIPS upgrading aiohttp because HYR-SENSE's older
+#       copy looks like it satisfies the requirement, so imports resolve to a
+#       version missing newer symbols:
+#           ImportError: cannot import name 'ClientConnectorDNSError'
+#   Mixed-provenance site-packages breaks in both directions at once. HYR-SENSE
+#   is Python 3.10 with a pinned older stack; this project needs a modern one.
+#   They cannot be layered — the env must be self-consistent.
+#
+# IDEMPOTENT. Safe to re-run. Pass --recreate to rebuild the environment.
 # =============================================================================
 set -euo pipefail
 
-BASE_ENV="${BASE_ENV:-HYR-SENSE}"
 DATA_STORE="${DATA_STORE:-$HOME/data-store}"
-VENV_DIR="${VENV_DIR:-$DATA_STORE/envs/unci-maka}"
+ENV_DIR="${ENV_DIR:-$DATA_STORE/envs/unci-maka}"
 WBT_DIR="${WBT_DIR:-$DATA_STORE/bin/WBT}"
 VBET_DATA_DIR="${VBET_DATA_DIR:-$DATA_STORE/unci-maka-data}"
 KERNEL_NAME="unci-maka"
 KERNEL_DISPLAY="Python (Unci Maka / VBET)"
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ENV_YML="$REPO_ROOT/environment.yml"
 
 RECREATE=0
 [[ "${1:-}" == "--recreate" ]] && RECREATE=1
@@ -42,111 +52,126 @@ ok()   { printf '   \033[32mok\033[0m   %s\n' "$*"; }
 warn() { printf '   \033[33mwarn\033[0m %s\n' "$*"; }
 die()  { printf '\n\033[31mERROR\033[0m %s\n\n' "$*" >&2; exit 1; }
 
-# -----------------------------------------------------------------------------
-say "1. Locating base conda environment: $BASE_ENV"
-# -----------------------------------------------------------------------------
-CONDA_BASE="$(conda info --base 2>/dev/null)" || die "conda not found on PATH."
-BASE_PREFIX="$CONDA_BASE/envs/$BASE_ENV"
+command -v conda >/dev/null || die "conda not found on PATH."
+[[ -f "$ENV_YML" ]] || die "environment.yml not found at $ENV_YML"
 
-if [[ ! -x "$BASE_PREFIX/bin/python" ]]; then
-    echo "   Could not find $BASE_PREFIX/bin/python"
-    echo "   Available environments:"
-    conda env list | sed 's/^/     /'
-    die "Set BASE_ENV to one of the above, e.g.  BASE_ENV=my-env bash $0"
+# Prefer mamba (much faster solver); fall back to conda.
+if command -v mamba >/dev/null; then SOLVER=mamba; else SOLVER=conda; fi
+
+# -----------------------------------------------------------------------------
+say "1. Checking target: $ENV_DIR"
+# -----------------------------------------------------------------------------
+# A leftover venv from the old overlay approach lives at this same path and
+# would be mistaken for a usable environment. Detect it by pyvenv.cfg.
+if [[ -f "$ENV_DIR/pyvenv.cfg" ]]; then
+    warn "found an old --system-site-packages venv here (the approach that"
+    warn "caused the numpy/aiohttp import errors). Removing it."
+    rm -rf "$ENV_DIR"
 fi
-BASE_PY="$BASE_PREFIX/bin/python"
-ok "$BASE_PREFIX"
-ok "$("$BASE_PY" -V 2>&1)"
+
+if [[ $RECREATE -eq 1 && -d "$ENV_DIR" ]]; then
+    echo "   --recreate: removing $ENV_DIR"
+    rm -rf "$ENV_DIR"
+fi
 
 # -----------------------------------------------------------------------------
-say "2. Auditing the base environment"
+say "2. Conda environment"
 # -----------------------------------------------------------------------------
-# Anything already present in HYR-SENSE is inherited by the overlay and never
-# reinstalled. Only the misses below get pip-installed into ~/data-store.
-"$BASE_PY" - <<'PY'
-import importlib.util as u
-core = ["numpy","pandas","geopandas","rasterio","rioxarray","xarray","shapely",
-        "pyproj","scipy","matplotlib","folium","osgeo"]
-extra = ["whitebox","pynhd","dataretrieval","pyarrow","py3dep"]
-for label, mods in (("core (expected present)", core), ("project extras", extra)):
-    print(f"   {label}:")
-    for m in mods:
-        print(f"     {'ok  ' if u.find_spec(m) else 'MISS'}  {m}")
+if [[ -x "$ENV_DIR/bin/python" ]]; then
+    ok "reusing $ENV_DIR"
+    ok "$("$ENV_DIR/bin/python" -V 2>&1)"
+else
+    echo "   Building from $ENV_YML"
+    echo "   This is a ONE-TIME cost (10-20 min). It persists in data-store."
+    echo
+
+    # CyVerse containers are memory-limited; parallel fetch/extract is the
+    # documented cause of std::bad_alloc / segfaults during env creation.
+    conda config --set fetch_threads 1   >/dev/null 2>&1 || true
+    conda config --set extract_threads 1 >/dev/null 2>&1 || true
+
+    df -h "$DATA_STORE" | tail -1 | awk '{print "   data-store free: " $4}'
+
+    # --prefix overrides the `name:` in environment.yml (conda warns; harmless).
+    "$SOLVER" env create --prefix "$ENV_DIR" --file "$ENV_YML" \
+        || die "Environment creation failed.
+   If it OOMed, the container needs more memory — relaunch the CyVerse app with
+   a larger memory allocation, then re-run this script.
+   Partial state was left at $ENV_DIR; re-run with --recreate to start clean."
+    ok "created $ENV_DIR"
+fi
+ENV_PY="$ENV_DIR/bin/python"
+[[ -x "$ENV_PY" ]] || die "No python at $ENV_PY — the env did not build."
+
+# -----------------------------------------------------------------------------
+say "3. Verifying the stack is self-consistent"
+# -----------------------------------------------------------------------------
+# Run this BEFORE the kernel is registered, so a broken env never reaches a
+# notebook. Each import below corresponds to a failure seen in the field.
+PROJ_SHARE="$ENV_DIR/share/proj"
+GDAL_SHARE="$ENV_DIR/share/gdal"
+
+PROJ_DATA="$PROJ_SHARE" PROJ_LIB="$PROJ_SHARE" GDAL_DATA="$GDAL_SHARE" \
+"$ENV_PY" - <<'PY' || die "Verification failed — see the traceback above."
+import sys, traceback
+fail = []
+
+def check(label, fn):
+    try:
+        fn(); print(f"     ok    {label}")
+    except Exception:
+        traceback.print_exc(); fail.append(label); print(f"     FAIL  {label}")
+
+def _numpy_abi():
+    # The exact break from the overlay approach: pandas/pyarrow compiled
+    # against a different numpy than the one that ends up on sys.path.
+    import numpy, pandas, pyarrow
+    print(f"           numpy {numpy.__version__}  pandas {pandas.__version__} "
+          f"pyarrow {pyarrow.__version__}")
+
+def _geo():
+    import geopandas, rasterio, rioxarray
+    from osgeo import gdal
+    print(f"           geopandas {geopandas.__version__}  "
+          f"rasterio {rasterio.__version__}  GDAL {gdal.__version__}")
+
+def _proj():
+    import pyproj
+    pyproj.CRS.from_epsg(32613)          # fails when PROJ_DATA is wrong
+
+def _pynhd():
+    # Pulls aiohttp/async_retriever — the second overlay failure.
+    from pynhd import NLDI, nhdplus_vaa, WaterData
+
+check("numpy / pandas / pyarrow ABI", _numpy_abi)
+check("geospatial stack",             _geo)
+check("pyproj EPSG:32613",            _proj)
+check("pynhd + async_retriever",      _pynhd)
+check("scipy",        lambda: __import__("scipy.ndimage"))
+check("whitebox",     lambda: __import__("whitebox"))
+check("dataretrieval", lambda: __import__("dataretrieval"))
+
+sys.exit(1 if fail else 0)
 PY
-
-MISSING_CORE="$("$BASE_PY" -c "
-import importlib.util as u
-core=['numpy','pandas','geopandas','rasterio','rioxarray','shapely','pyproj','scipy','matplotlib','folium','osgeo']
-print(' '.join(m for m in core if not u.find_spec(m)))")"
-if [[ -n "$MISSING_CORE" ]]; then
-    warn "Base env is missing core geospatial packages: $MISSING_CORE"
-    warn "The overlay will try to pip-install them, which is slow and may conflict"
-    warn "with conda's GDAL. Consider a different BASE_ENV if this looks wrong."
-fi
+ok "all imports clean"
 
 # -----------------------------------------------------------------------------
-say "3. Overlay virtualenv"
-# -----------------------------------------------------------------------------
-if [[ $RECREATE -eq 1 && -d "$VENV_DIR" ]]; then
-    echo "   --recreate: removing $VENV_DIR"
-    rm -rf "$VENV_DIR"
-fi
-
-if [[ -x "$VENV_DIR/bin/python" ]]; then
-    ok "reusing $VENV_DIR"
-else
-    echo "   creating $VENV_DIR (inherits $BASE_ENV via --system-site-packages)"
-    mkdir -p "$(dirname "$VENV_DIR")"
-    "$BASE_PY" -m venv --system-site-packages "$VENV_DIR"
-    ok "created"
-fi
-VENV_PY="$VENV_DIR/bin/python"
-
-# Guard: a venv built against a previous container's conda env breaks when the
-# image is updated. Detect the dangling base and rebuild automatically.
-if ! "$VENV_PY" -c "import sys" 2>/dev/null; then
-    warn "overlay is broken (base env changed?) — recreating"
-    rm -rf "$VENV_DIR"
-    "$BASE_PY" -m venv --system-site-packages "$VENV_DIR"
-fi
-
-# -----------------------------------------------------------------------------
-say "4. Installing missing project packages into the overlay"
-# -----------------------------------------------------------------------------
-NEED="$("$VENV_PY" -c "
-import importlib.util as u
-# import name -> pip name
-req = {'whitebox':'whitebox', 'pynhd':'pynhd', 'dataretrieval':'dataretrieval',
-       'ipykernel':'ipykernel'}
-print(' '.join(p for m, p in req.items() if not u.find_spec(m)))")"
-
-if [[ -z "$NEED" ]]; then
-    ok "nothing to install"
-else
-    echo "   installing: $NEED"
-    # --no-warn-script-location: scripts land in the venv, which is expected.
-    "$VENV_PY" -m pip install --quiet --upgrade pip
-    "$VENV_PY" -m pip install --no-warn-script-location $NEED
-    ok "installed"
-fi
-
-# -----------------------------------------------------------------------------
-say "5. WhiteboxTools binary (persistent)"
+say "4. WhiteboxTools binary"
 # -----------------------------------------------------------------------------
 # WhiteboxTools() downloads a ~200 MB Rust binary from its constructor. Setting
-# WBT_PATH makes download_wbt() return early, so we only ever fetch it once and
-# keep it in ~/data-store.
+# WBT_PATH makes download_wbt() return early. Keeping it outside the env means
+# it survives an --recreate.
 if [[ -x "$WBT_DIR/whitebox_tools" ]]; then
     ok "already present at $WBT_DIR"
 else
-    echo "   downloading WhiteboxTools once into $WBT_DIR (~200 MB)…"
+    echo "   downloading once into $WBT_DIR (~200 MB)…"
     mkdir -p "$(dirname "$WBT_DIR")"
-    WBT_DIR="$WBT_DIR" "$VENV_PY" - <<'PY'
+    WBT_DIR="$WBT_DIR" "$ENV_PY" - <<'PY'
 import os, shutil
 from pathlib import Path
 import whitebox
 wbt = whitebox.WhiteboxTools()          # triggers the one-time download
-src = Path(wbt.exe_path)                # NOTE: a directory, not the exe itself
+src = Path(wbt.exe_path)                # a DIRECTORY, not the exe itself
 dst = Path(os.environ["WBT_DIR"])
 shutil.copytree(src, dst, dirs_exist_ok=True)
 for f in [dst / "whitebox_tools", *(dst / "plugins").glob("*")]:
@@ -157,19 +182,21 @@ PY
     ok "installed"
 fi
 
-# -----------------------------------------------------------------------------
-say "6. Registering the Jupyter kernel"
-# -----------------------------------------------------------------------------
-# Kernel registrations do NOT persist between sessions — this must run each time.
-# PROJ/GDAL data live under the BASE env (the venv has no share/proj), so the
-# kernel spec must point at BASE_PREFIX, not VENV_DIR.
-PROJ_SHARE="$BASE_PREFIX/share/proj"
-GDAL_SHARE="$BASE_PREFIX/share/gdal"
-[[ -d "$PROJ_SHARE" ]] || warn "no $PROJ_SHARE — PROJ errors are likely"
-[[ -d "$GDAL_SHARE" ]] || warn "no $GDAL_SHARE"
+WBT_PATH="$WBT_DIR" "$ENV_PY" -c "
+import os, whitebox
+w = whitebox.WhiteboxTools(); w.set_whitebox_dir(os.environ['WBT_PATH'])
+print('    ', w.version().splitlines()[0].strip())
+"
 
+# -----------------------------------------------------------------------------
+say "5. Registering the Jupyter kernel"
+# -----------------------------------------------------------------------------
+# Kernel registrations live in ~/.local/share/jupyter and do NOT persist —
+# this is the only step that genuinely has to repeat each session.
+[[ -d "$PROJ_SHARE" ]] || warn "no $PROJ_SHARE — PROJ errors are likely"
 mkdir -p "$VBET_DATA_DIR"
-"$VENV_PY" -m ipykernel install --user \
+
+"$ENV_PY" -m ipykernel install --user \
     --name "$KERNEL_NAME" \
     --display-name "$KERNEL_DISPLAY" \
     --env PROJ_DATA "$PROJ_SHARE" \
@@ -179,62 +206,46 @@ mkdir -p "$VBET_DATA_DIR"
     --env VBET_DATA_DIR "$VBET_DATA_DIR" >/dev/null
 ok "kernel '$KERNEL_DISPLAY' registered"
 
-# -----------------------------------------------------------------------------
-say "7. Verifying"
-# -----------------------------------------------------------------------------
-PROJ_DATA="$PROJ_SHARE" PROJ_LIB="$PROJ_SHARE" GDAL_DATA="$GDAL_SHARE" \
-WBT_PATH="$WBT_DIR" "$VENV_PY" - <<'PY'
-import os, sys, traceback
-fail = []
+# A kernel left over from the old overlay venv still shows in the picker and is
+# still broken. Remove only kernels whose interpreter points INTO our own
+# data-store envs directory and no longer exists — never touch image-provided
+# kernels such as HYR-SENSE.
+for spec in "$HOME/.local/share/jupyter/kernels"/*/kernel.json; do
+    [[ -f "$spec" ]] || continue
+    py="$("$ENV_PY" -c "
+import json, sys
 try:
-    import geopandas, rasterio, rioxarray, scipy, folium, numpy, pandas
-    from osgeo import gdal
-    print(f"     geopandas {geopandas.__version__}  rasterio {rasterio.__version__}  GDAL {gdal.__version__}")
+    argv = json.load(open(sys.argv[1])).get('argv') or ['']
+    print(argv[0])
 except Exception:
-    traceback.print_exc(); fail.append("geospatial stack")
-
-try:
-    import pyproj
-    pyproj.CRS.from_epsg(32613)     # the exact call that fails without PROJ_DATA
-    print("     pyproj: EPSG:32613 resolved")
-except Exception:
-    traceback.print_exc(); fail.append("pyproj/PROJ_DATA")
-
-try:
-    import pynhd; print("     pynhd ok")
-except Exception:
-    traceback.print_exc(); fail.append("pynhd")
-
-try:
-    import whitebox
-    wbt = whitebox.WhiteboxTools()
-    wbt.set_whitebox_dir(os.environ["WBT_PATH"])
-    print("    ", wbt.version().splitlines()[0].strip())
-except Exception:
-    traceback.print_exc(); fail.append("whitebox")
-
-sys.exit(1 if fail else 0)
-PY
+    print('')" "$spec" 2>/dev/null)"
+    case "$py" in
+        "$DATA_STORE"/envs/*)
+            if [[ ! -x "$py" ]]; then
+                warn "removing stale kernel '$(basename "$(dirname "$spec")")' (missing $py)"
+                rm -rf "$(dirname "$spec")"
+            fi
+            ;;
+    esac
+done
 
 # -----------------------------------------------------------------------------
 cat <<EOF
 
 $(printf '\033[1m== Done\033[0m')
 
-  Base env      : $BASE_PREFIX  (from the image — persists)
-  Overlay       : $VENV_DIR  (persists)
+  Environment   : $ENV_DIR  (persists)
   WhiteboxTools : $WBT_DIR  (persists)
   Notebook data : $VBET_DATA_DIR  (persists)
-  Kernel        : "$KERNEL_DISPLAY"  (re-register each session by re-running this)
+  Kernel        : "$KERNEL_DISPLAY"  (re-run this script each session)
 
 Next:
-  1. Refresh the browser tab (JupyterLab fetches the kernel list on page load).
-  2. Open a notebook and pick "$KERNEL_DISPLAY" from the kernel picker.
+  1. Refresh the browser tab (the kernel list is fetched on page load).
+  2. Open a notebook, pick "$KERNEL_DISPLAY", and RESTART the kernel if the
+     notebook was already open with the old one.
   3. Run notebooks in order: 00 -> 01a -> 01.
 
-VBET_DATA_DIR is baked into the kernel spec, so the notebooks write to
-persistent storage automatically. For terminal use, also export it:
-
-  export VBET_DATA_DIR=$VBET_DATA_DIR
+Do NOT use the HYR-SENSE kernel for these notebooks — its Python 3.10 stack is
+too old for pynhd, and mixing the two is what caused the numpy/aiohttp errors.
 
 EOF

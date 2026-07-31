@@ -59,18 +59,24 @@ Then refresh the browser tab and pick the "Python (Unci Maka / VBET)" kernel.
 stack every session (10-20 min) and regularly OOMs the container. `environment.yml` is still the
 authoritative spec for local installs and for the Docker image.
 
-`scripts/setup_cyverse.sh` instead layers an overlay venv on the image's existing `HYR-SENSE`
-conda env:
-- `python -m venv --system-site-packages` inherits GDAL/geopandas/rasterio from HYR-SENSE.
-- The venv lives at `~/data-store/envs/unci-maka`, so pip installs **persist**; installing
-  directly into `/opt/conda/envs/HYR-SENSE` would not, and would mutate a shared env.
-- Only `whitebox`, `pynhd`, `dataretrieval` are typically missing and get installed.
-- WhiteboxTools binary -> `~/data-store/bin/WBT` (once), `VBET_DATA_DIR` ->
-  `~/data-store/unci-maka-data`.
-- Kernel spec carries `PROJ_DATA`/`GDAL_DATA` (pointing at the **base** env, not the venv),
-  `WBT_PATH`, and `VBET_DATA_DIR`.
+`scripts/setup_cyverse.sh` builds a **self-contained conda env at a prefix in data-store**:
+`mamba env create --prefix ~/data-store/envs/unci-maka -f environment.yml`. Conda envs do not
+have to live in `/opt/conda/envs` — `--prefix` puts one in persistent storage, so it is built
+once (10-20 min) and reused. Only kernel registration repeats each session.
 
-Override the base with `BASE_ENV=<name> bash scripts/setup_cyverse.sh`; rebuild with `--recreate`.
+**Do NOT layer a venv on HYR-SENSE.** This was tried and fails in two directions at once:
+pip installs a new numpy into the venv which shadows HYR-SENSE's numpy but not its
+NumPy-1.x-compiled pandas/pyarrow (`AttributeError: _ARRAY_API not found`), while simultaneously
+skipping the aiohttp upgrade because the old copy looks like it satisfies the requirement
+(`ImportError: cannot import name 'ClientConnectorDNSError'`). HYR-SENSE is Python 3.10 with a
+pinned older stack; a mixed-provenance site-packages tree cannot be made consistent.
+The notebooks must run on the `unci-maka` kernel, never HYR-SENSE.
+
+The script verifies the stack (numpy/pandas/pyarrow ABI, pyproj EPSG:32613, pynhd/aiohttp)
+*before* registering the kernel, so a broken env never reaches a notebook. It also prunes dead
+kernels pointing into `data-store/envs`, and never touches image-provided kernels.
+
+Override the location with `ENV_DIR=<path>`; rebuild with `--recreate`.
 
 ### PROJ path resolution in the notebooks
 All three notebooks use a `_find_share()` helper that checks `sys.prefix` **then**
