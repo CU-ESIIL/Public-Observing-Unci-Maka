@@ -1,0 +1,5 @@
+Figures written by notebook runs land here, one subfolder per run.
+
+The contents are gitignored on purpose: this repo is public and an executed run
+embeds a 60 cm gallery map (research plan §11, still an open CARE decision).
+This file is tracked so the folder exists on a fresh clone.

@@ -30,6 +30,11 @@
 !docs/**/*.tif
 !docs/**/*.tiff
 
+# Figures written by notebook runs. Keep the folder, drop its contents:
+# the repo is public and an executed run embeds a 60 cm gallery map (plan §11).
+figures/*
+!figures/.gitkeep
+
 # Request / tile caches
 notebooks/cache/
 *.sqlite

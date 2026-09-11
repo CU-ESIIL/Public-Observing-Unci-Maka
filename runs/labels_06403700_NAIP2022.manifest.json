@@ -1,0 +1,95 @@
+{
+  "run_name": "labels_06403700_NAIP2022",
+  "notebook": "03_NAIP_Segmentation_Labels.ipynb",
+  "created_utc": "2026-09-11T21:00:29+00:00",
+  "git_commit": "d187319",
+  "inputs": {
+    "vbet_run": "smoketest_redshirt",
+    "vbet_manifest": "smoketest_redshirt.manifest.json",
+    "naip_stac_items": [
+      "sd_m_4310217_se_13_060_20220713"
+    ],
+    "naip_year": 2022,
+    "naip_gsd_m": 0.6,
+    "stac_endpoint": "https://planetarycomputer.microsoft.com/api/stac/v1"
+  },
+  "parameters": {
+    "centre_lon_lat": [
+      -102.8921,
+      43.6724
+    ],
+    "window_half_m": 1000,
+    "crs": "EPSG:26913",
+    "texture_win_m": 9.0,
+    "shadow_frac": 0.5,
+    "shadow_reach_m": 5.0,
+    "segment_size_m": 5.0,
+    "compactness": 0.15,
+    "n_clusters": 10,
+    "seed": 42,
+    "cluster_features": [
+      "ndvi",
+      "ndvi_sd",
+      "texture",
+      "shadow_adj",
+      "brightness",
+      "nir"
+    ],
+    "rules": {
+      "water_ndvi": -0.3,
+      "veg_ndvi": 0.15,
+      "shadow_adj_woody": 0.25,
+      "shadow_adj_shade": 0.75,
+      "bare_bright": 0.55
+    },
+    "min_patch_m2": 50.0,
+    "close_gap_m": 2.5,
+    "validation_n": 300
+  },
+  "environment": {
+    "python": "3.12.13",
+    "geopandas": "1.1.3",
+    "rasterio": "1.5.0",
+    "scikit-image": "0.26.0",
+    "scikit-learn": "1.8.0"
+  },
+  "results": {
+    "window_km2": 4.0,
+    "valley_bottom_ha": 260.1,
+    "vbet_valley_frac": 0.1473,
+    "tile_scale_factor": 566.4,
+    "n_segments": 172728,
+    "n_segments_in_mask": 112022,
+    "area_ha_by_class": {
+      "water": 2.4,
+      "riparian_woody": 8.74,
+      "shadow": 7.89,
+      "herbaceous": 24.59,
+      "sparse_bare": 206.16,
+      "bare_bright": 10.46
+    },
+    "gallery_ha": 7.67,
+    "gallery_pct_valley": 2.95,
+    "n_patches": 458,
+    "n_validation_points": 300,
+    "cluster_class_map": {
+      "1": "herbaceous",
+      "5": "riparian_woody",
+      "9": "sparse_bare",
+      "3": "shadow",
+      "2": "sparse_bare",
+      "4": "sparse_bare",
+      "7": "bare_bright",
+      "0": "sparse_bare",
+      "8": "sparse_bare",
+      "6": "water"
+    },
+    "read_seconds": 38.6,
+    "slic_seconds": 6.3
+  },
+  "outputs": [
+    "labels_06403700_NAIP2022_classes.tif",
+    "labels_06403700_NAIP2022.gpkg",
+    "naip_labels_06403700_NAIP2022.tif"
+  ]
+}

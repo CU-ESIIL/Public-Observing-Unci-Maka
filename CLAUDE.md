@@ -5,9 +5,9 @@ ESIIL working group bringing together Tribal members, scientists, and NASA resea
 
 ## Repo Structure
 ```
-notebooks/PineRidge/  # Cheyenne River cottonwood notebooks (00, 01a, 01, 01s, NAIP, 03–06 stubs)
+notebooks/PineRidge/  # Cheyenne River cottonwood notebooks 00–08 (+ checks/ for 01s)
 notebooks/Hopi/       # Blue Canyon EMIT/HLS exploratories
-notebooks/archive/    # Retired: the two duplicate HLS notebooks
+notebooks/archive/    # Retired: 01a_DEM_Prefetch, NAIP_Tile_Analysis, 2 duplicate HLS notebooks
 planning/           # Research plans — START HERE, see below
 runs/               # Run manifests (small JSON, tracked in git; the rasters are not)
 data/               # Study area boundaries + VBET intermediates (gitignored via *data/)
@@ -34,7 +34,8 @@ The two `environment.yml` files should stay in sync on core packages. The docker
 > data-store.
 >
 > **Pending for the next image rebuild** — add all of these to `docker/jupyterlab/environment.yml`
-> at the same time: `whitebox`, `scikit-image`, `scikit-learn`, `odc-stac`, and pip `mgrs`.
+> at the same time: `whitebox`, `scikit-image`, `scikit-learn`, `odc-stac`.
+> (`mgrs` was on this list and is **no longer needed** — `01` derives MGRS geometry arithmetically.)
 
 Note there is a **fourth** environment present on CyVerse that this repo does not define:
 `hyr-sense`, baked into the ESIIL image. It is Python 3.10 with an older pinned stack and is
@@ -63,8 +64,51 @@ decision log rather than rewriting it.
 | WhiteboxTools | **MIT core tools only, no plugins/extensions** (see below) |
 
 ### Phase status
-Phase 0 (foundations) and Phase 1a (VBET smoke test) are **done**. Phase 1b (VBET on all of 13TFJ)
-and Phase 2 (NAIP auto-labels) are next.
+Phases 0 and 1a **done**. Phase 1b **run 2026-09-11** — 13TFJ produced 814 km² of valley bottom
+(8.14% of the tile) in 1.5 s of hydrology; gate needs the geomorphic check against NAIP.
+Phase 2 **in progress** (`03` built and runs, still pointed at the smoke-test mask).
+Phases 3–7 have skeletons.
+
+### Notebook state — restructured 2026-09-11, start here
+
+The plan §18 renumbering is **done**. `01a` folded into `01`; `01s` moved to `checks/`.
+
+| Notebook | Runs? | Note |
+|---|---|---|
+| `00_Study_Area` | ✅ | AOI definition still under review — see below |
+| `01_VBET_ValleyBottom` | ✅ run on 13TFJ | three-tool chain; `TILE` + `DEM_RES_M` drive everything |
+| `02_NAIP_Access` | skeleton | NAIP epoch inventory across the tile |
+| `03_NAIP_Segmentation_Labels` | ✅ | runs against the `01s` mask |
+| `04`–`08` | skeletons | config cell + section headings, analysis cells empty |
+| `checks/01s_VBET_SmokeTest` | ✅ | standing environment check — run first on a new machine |
+
+**The old blocker is cleared.** `01` no longer contains `d8_pointer`, `d8_flow_accumulation`,
+`extract_streams`, `FLOW_ACCUM_THRESHOLD` or HUC chunking — verified by scan. It runs the chain
+validated in `01s`. **It has still never been executed**, so treat its first 13TFJ run as the
+Phase 1b gate, not a routine step.
+
+**Skeleton means**: title stating what it reads/writes, section headings, a complete config cell,
+and a manifest stub — analysis cells deliberately **empty**. Per plan §14 the markdown is *not*
+written in advance; the group fills these in together. Don't fill them unasked.
+
+**MGRS geometry is arithmetic, not a package.** `01` §2 derives any square's bounds *and* its EPSG
+from the tile name in ~20 lines. `13TFJ` → EPSG:32613, 600–700 km E, 4800–4900 km N; buffered grid
+13.44 M cells. **`mgrs` is no longer a needed dependency.** Deriving the CRS matters because the
+corridor crosses into zone 14.
+
+**Walkthrough reaches are gauge-anchored.** Four 2 × 2 km windows, one per 8-digit gauge in 13TFJ:
+`06401500` Angostura, `06402600` Buffalo Gap, `06403700` Red Shirt (validated), `06408650` Scenic.
+`EXAMPLE_WINDOWS` repeats in each config cell by convention — deliberate duplication (plan §14),
+don't refactor into a shared module. **Coordinates for all but Red Shirt are approximate
+placeholders marked `VERIFY`** — replace from the `usgs_gauges` layer on first run.
+
+**Scale unit differs by step, and this matters:** 13TFJ is the right unit for VBET (~13.4 M cells
+at 30 m, minutes) and the *wrong* unit for NAIP (~1,473 km² of valley bottom, ~6.3 G px at 60 cm,
+~56 min segmentation plus a multi-hour network read). Keep `03` window/reach-scale.
+
+**Suggested order next session:** (1) first real run of `01` on 13TFJ → Phase 1b gate; (2) repoint
+`03` to `VBET_RUN = "vbet_13TFJ"`, run the four windows → Phase 2 gate; (3) fill `02` to close the
+NAIP epoch-coverage item; (4) interpret the validation sample.
 
 ## Key Environment Decisions Made
 - **Slimmed root `environment.yml`** to ~23 packages (was 38). Removed transitive deps (shapely, pyproj, bokeh, fsspec, aiohttp, requests) and EMIT-only packages (panel, spectral, scikit-image, netCDF4, h5netcdf, s3fs, zarr, cartopy). These can be pip-installed separately when needed.
@@ -113,26 +157,56 @@ All three notebooks use a `_find_share()` helper that checks `sys.prefix` **then
 is correct on its own; the fallback is retained because it is free and makes the notebooks work
 under a venv too. The kernel spec also sets `PROJ_DATA`/`GDAL_DATA` explicitly.
 
-## VBET / Valley Bottom Pipeline (notebooks 00 → 01a → 01)
+## VBET / Valley Bottom Pipeline (notebooks 00 → 01)
 
 Produces `data/cheyenne_valley_bottom.gpkg`, the riparian analysis extent that notebooks 02–06
 clip cottonwood classification to.
 
 | Notebook | Produces |
 |---|---|
-| `00_Study_Area-Cottonwoods.ipynb` | `cheyenne_corridor_aoi.gpkg` — corridor AOI + flowlines + gauges |
-| `01a_DEM_Prefetch.ipynb` | `cheyenne_dem_30m.tif`, `cheyenne_flowlines_vaa.gpkg`, persistent WBT binary |
-| `01_VBET_ValleyBottom.ipynb` | `cheyenne_valley_bottom.gpkg`, `cheyenne_valley_mask_30m.tif` |
-| `01s_VBET_SmokeTest.ipynb` | 20 × 20 km box at Red Shirt — runs in seconds, validates the whole chain. **Run this first on a new machine.** Writes patches, a binary uint8 mask for clipping imagery, and a manifest. |
-| `NAIP_Tile_Analysis.ipynb` | NAIP chip via Planetary Computer (anonymous) |
+| `00_Study_Area.ipynb` | `cheyenne_corridor_aoi.gpkg` — corridor AOI + flowlines + gauges |
+| `01_VBET_ValleyBottom.ipynb` | `vbet_<TILE>_valley_bottom.gpkg`, `..._valley_mask_30m.tif`, DEM, HAND, slope |
+| `checks/01s_VBET_SmokeTest.ipynb` | 20 × 20 km box at Red Shirt — seconds, validates the whole chain |
+
+`01` fetches its own DEM tiles and flowlines; there is no separate prefetch notebook. The
+WhiteboxTools binary is downloaded and persisted by `scripts/setup_cyverse.sh`, which also bakes
+`WBT_PATH` into the kernel spec — notebooks only *use* it.
 
 **Scale**: corridor AOI is ~6,225 km² over a 228 × 187 km envelope, 8,964 NHD reaches
 (17,361 km). At 30 m that is ~47 M cells.
 
+### The corridor AOI is buffer-defined, and that is under review
+
+`00` builds the AOI from three arbitrary numbers: a 0.5° bbox pad, a **30 km** tributary filter
+(`TRIB_BUFFER_DEG = 0.27`, there to exclude the Belle Fourche), and a **10 km** main-stem buffer.
+Replacing them with HUC12 units was tested on 2026-09-11. **Measured, against the `01s` valley
+bottom as the containment test:**
+
+| AOI rule | km² | holds valley bottom |
+|---|---|---|
+| HUC12s touching the main stem | 3,966 | **62.7%** ✗ clips a third of the corridor |
+| HUC12s touching any corridor flowline | 19,038 | 100% but 3× too big |
+| HUC12s intersecting the current AOI | 10,788 | 100% but 1.7× too big |
+| **current buffer AOI** | **6,225** | **91.7%** — also clips, by 8% |
+| full Cheyenne basin at Eagle Butte | 62,690 | far too big |
+
+**No HUC12 rule lands on the corridor**, because a HUC12 is a *catchment* (channel to divide) and a
+riparian corridor is a *lateral* strip. Selecting whole catchments to approximate a corridor either
+clips it or swallows whole uplands. Do not "fix" the AOI by switching wholesale to HUC12s.
+
+Two things this did surface, both real:
+- **The current 10 km buffer already clips ~8% of the valley bottom.** Whatever AOI is used must be
+  validated as a *superset* of the valley bottom, not assumed to be one.
+- **HUC topology is the right tool for the *tributary filter*, not for the extent.** The arbitrary
+  30 km buffer that excludes the Belle Fourche can be replaced by dropping its HUC8s
+  (`10120201/2/3`), which is principled rather than a distance guess.
+
+Open decision, recorded in plan §2.6 and §17.
+
 ### DEM — do NOT use `py3dep.get_dem()` for the corridor
 `py3dep` hits the 3DEP **dynamic** service, which renders elevation on demand. It is fine for a
 few hundred km² and effectively unusable at corridor scale — this was the original bottleneck.
-Notebook 01a instead pulls **static staged 3DEP COG tiles** from the public USGS S3 bucket:
+Notebook `01` §4 instead pulls **static staged 3DEP COG tiles** from the public USGS S3 bucket:
 ```
 https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/{1|13}/TIFF/current/{tile}/USGS_{1|13}_{tile}.tif
 ```
@@ -140,6 +214,106 @@ https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/{1|13}/TIFF/current/{t
 (`n44w104` = lat 43–44, lon −104 to −103). The corridor needs 8 tiles at 30 m, ~415 MB total.
 Downloads are resumable and cached; `BuildVRT` + one `Warp` mosaics, reprojects to EPSG:32613,
 and clips in a single pass.
+
+### DEM resolution — 10 m is a config change, 1 m is not
+
+Measured on the real 13TFJ run (30 m, 110 km buffered square): 13.44 M cells, hydrology
+**1.5 s**, ~298 MB of intermediates, valley bottom **814 km² = 8.14% of the tile**. That 8.14%
+supersedes the 14.7% extrapolated from the smoke box — the smoke box was centred on the main
+stem and was not representative.
+
+| | cells | 1 raster | intermediates | hydrology | source |
+|---|---|---|---|---|---|
+| 30 m | 13 M | 0.05 GB | 0.3 GB | 1.5 s | 0.2 GB (4 tiles) |
+| **10 m** | 121 M | 0.48 GB | 2.7 GB | ~14 s | 1.6 GB (4 tiles) |
+| 1 m | 12,100 M | 48 GB | **268 GB** | 22 min+ | 37 GB (~150 tiles) |
+
+**Why 1 m is out, and it is not WBT's fault.** WBT streams to disk. The wall is **our own
+section 8** — the valley-bottom step is plain numpy (`binary_fill_holes`, `label`, `rasterize`)
+holding several full-grid arrays, which is 48 GB *each* at 1 m. That is the pysheds memory
+problem relocated into our code. Also: 1 m is a different product line tiled 10 km in UTM
+(`x61y479`), so `tiles_for_bbox()` — which builds 1-degree names — does not work; and the ~150
+tiles span two projects of different vintage (NRCS 2018, Black Hills 2023).
+
+**Resolution-coupled parameters are now derived, never typed** (`01` and `01s` config cells):
+- `DEM_PRODUCT = {30: "1", 10: "13"}[DEM_RES_M]` — a `KeyError` beats silently upsampling 30 m
+  data and calling it 10 m.
+- `BREACH_DIST_CELLS = round(BREACH_DIST_M / DEM_RES_M)`, `BREACH_DIST_M = 3000`. A fixed 100
+  cells is 3 km at 30 m but only 1 km at 10 m — a different hydrological assumption, silently.
+- `RUN_NAME` carries the resolution (`vbet_13TFJ_30m`), so two runs coexist instead of
+  overwriting. **Note the existing `vbet_13TFJ` run predates this** and keeps its old name.
+
+**`slope_deg` is NOT resolution-portable and is deliberately left un-derived.** Slope on a finer
+DEM is systematically steeper — a smaller cell resolves relief a coarse cell averages away — so
+30 m thresholds reused at 10 m shrink the valley bottom for grid reasons, not geomorphic ones.
+**`01s` section 9 measures the shift** across whatever resolutions have been run and prints
+re-tuned thresholds. Run `01s` at 30 m, change one number to 10, re-run, read section 9 — that
+is the cheap test before committing a tile.
+
+### Canopy height — NAIP-CHM (candidate fix for the §5.1 cottonwood/willow problem)
+
+NTSG (U. Montana) published **NAIP-CHM**, a 0.6 m canopy height model for CONUS in Nature
+*Scientific Data*, derived from NAIP 4-band imagery by U-Net. **0.6 m is exactly the `03` grid**,
+so no resampling. RMSE 2.28 m, r² 0.87; grassland/shrubland were oversampled in training, which
+is our matrix. Mature plains cottonwood is 15–30 m against 2–6 m sandbar willow, so a 2.28 m
+RMSE is comfortably inside what that separation needs.
+
+- **Free HTTP, no GEE, no account**: `https://rangeland.ntsg.umt.edu/data/naip-chm/<year>/<utm_zone>/`
+  plus `index.csv` / `index.geojson` at the root. Also `gs://naip-chm-assets/`.
+- Tiled by **NAIP DOQQ quarter-quad**, named `m_<quad>_<quarter>_<zone>_<gsd>_<naip_date>_<proc_date>_chm.tif`
+  — note the **second date**, which is why a naive `<naip_item>_chm.tif` guess 404s. The index's
+  `source_doqq` column joins straight to the STAC item IDs `03` already pins.
+- UInt16, **divide by 100 for metres**, nodata 65535. `Accept-Ranges: bytes`, so windowed COG
+  reads work exactly like NAIP. ~51 MB/tile.
+- **Not vegetation-masked** — buildings and infrastructure are in the surface. Matters for the
+  §17 planted-tree screen; less for us, since `03` only applies height to already-woody segments.
+- **Epoch gap is accepted, not a blocker** (decided 2026-09-11). The tile covering Red Shirt is
+  `m_4310217_se_13_060_20230815_20231127_chm.tif` — NAIP **2023-08-15**, while `03` labels the
+  **2022-07-13** scene. Quad block 43102 is absent from 2022 and present in 2023. **Mature gallery
+  canopy height does not change materially in one year**, so the 2023 layer is a valid height
+  reference for 2022 patches. Two things it does *not* license: assuming pixel-perfect
+  co-registration between two different acquisitions, and using the gap-crossing pair to infer
+  *change* in height. Use it as a static height attribute, not a time point.
+
+#### Download vs. derive — the deciding fact is that the product is single-epoch here
+
+**Checked 2026-09-11, every published year, for Red Shirt quad block 43102:**
+
+| Year | 2012 | 2014 | 2015–2022 | 2023 |
+|---|---|---|---|---|
+| tiles in block | 0 | 0 | **0** | **256** (60 cm) |
+
+So the published CHM gives this study area **exactly one date: 2023**. It is not a time series.
+Anything else has to be derived. That reframes the choice:
+
+| | Download | Derive (NTSG model on our NAIP) |
+|---|---|---|
+| Epochs | **1** (2023 only) | 2016, 2018, 2020, 2021, 2022 — plus 2023 free |
+| Date-matched to `03` labels (2022) | ✗ one year off | ✓ |
+| Cost | ~51 MB/tile, minutes, no deps | PyTorch + weights + conditioning rasters, GPU-ish, per-epoch inference |
+| Licence | CC-BY data | MIT code |
+
+**DECIDED 2026-09-11 — lead with the published 2023 product. Do not start with inference.**
+1. **Download the 2023 tile first** to answer the one question that gates everything — does canopy
+   height actually separate cottonwood from willow in *our* patches? One tile, no dependencies. If
+   height does not separate them, nothing else here is worth building. The 2022→2023 gap is
+   accepted on the grounds above.
+2. **Only then consider inference**, which is what Phase 4/6 needs: `06` trends condition within
+   fixed patches across NAIP epochs, and a single 2023 layer cannot support that.
+
+**Bound on what deriving actually buys.** Red Shirt has 7 NAIP epochs, but the model expects
+**0.6 m 4-band**. 2016/2018/2020/2021/2022 are native 60 cm and feed straight in; **2012 and 2014
+are 1 m**, so they are out of the training distribution and would need resampling with degraded
+accuracy. Realistically the derivable series is **2016–2022 (5 epochs)**, not back to 2012 —
+shorter than the NAIP record itself.
+
+**The dependency cost is real.** PyTorch is the exact thing SAM was rejected for at v1 as too
+heavy on CyVerse (plan §5). Adding it for inference is a genuine environment decision, not a
+`pip install` — so make it only after step 1 has shown the payoff.
+
+- **Local inference details**: MIT-licensed code, published weights (`model/model_20251016.pt`),
+  `scripts/inference.py` (chip 432, overlap 0.2), conditioning rasters (elevation, climate PCA,
+  soil PCA) via `scripts/download_conditioning_data.py`, Python 3.11.
 
 ### Hydrology — WhiteboxTools, not pysheds
 `pysheds` holds several full-grid float32 arrays in Python memory at once (~190 MB each at 30 m),
@@ -176,9 +350,9 @@ Two facts from the package source:
   executable's path. `set_whitebox_dir(d)` just assigns it. Copy the whole directory, not just
   the binary, or plugin-backed tools fail to launch.
 
-Notebook 01a copies it to `~/data-store/bin/WBT` and chmods the binary and plugins; both
-notebooks then set `WBT_PATH` + `set_whitebox_dir()` when that path exists. Adding
-`export WBT_PATH=/home/jovyan/data-store/bin/WBT` to the shell profile makes it apply everywhere.
+`scripts/setup_cyverse.sh` copies it to `~/data-store/bin/WBT`, chmods the binary and plugins,
+and passes `--env WBT_PATH` to the kernel spec. The notebooks only set `WBT_PATH` +
+`set_whitebox_dir()` when that path already exists — they never download it themselves.
 
 ### Data directory resolution
 All three notebooks call `_resolve_data_dir()`, which prefers `$VBET_DATA_DIR`, else walks up
@@ -193,16 +367,16 @@ path and caused `cheyenne_corridor_aoi.gpkg not found` while the file sat in the
 manually only to relocate the big rasters somewhere else.
 
 ### Chunking
-Section 8 of notebook 01 has an optional HUC-8 chunked path (`USE_HUC_CHUNKING = True`), off by
-default — 30 m runs single-pass fine. It exists for small instances and for 10 m runs (~420 M
-cells). **Chunk by HUC, never by arbitrary tiles**: HUC boundaries are drainage divides, so no
-flow crosses them and D8 routing stays valid. Rectangular tiles sever contributing area and
-corrupt flow accumulation and HAND at every seam.
+**Removed from `01`.** With flow accumulation gone every step is local, so tile seams no longer
+corrupt anything and there is nothing chunking has to protect. If a memory-constrained instance
+ever needs it back, chunk by **HUC, never by arbitrary tiles** — and note that the original reason
+(keeping D8 routing valid across divides) no longer applies.
 
 ### Bugs fixed in this rework (don't reintroduce)
 - Flowlines from notebook 00 carry only `nhdplus_comid`, no `totdasqkm`. The VBET drainage-area
   classing silently fell through and assigned **every** reach to `medium` — the Cheyenne main
-  stem got headwater thresholds. 01a joins `pynhd.nhdplus_vaa()` on COMID to fix it.
+  stem got headwater thresholds. `01` now pulls `nhdflowline_network`, which carries
+  `totdasqkm` directly — no separate VAA join.
 - `FLOW_ACCUM_THRESHOLD` was hardcoded to 500 cells and documented as "~50 km² at 10 m"; at 30 m
   that is 450 km². It is now derived from `STREAM_INIT_KM2` and resolution.
 - The min-patch filter looped per connected component (`(labeled == i).sum()` over 47 M cells,
@@ -211,7 +385,7 @@ corrupt flow accumulation and HAND at every seam.
   to the same burn value already unions them; the union was pure waste.
 - Output provenance recorded `gauge_id` even for full-corridor runs.
 
-## NAIP Imagery (`notebooks/PineRidge/NAIP_Tile_Analysis.ipynb`)
+## NAIP Imagery (archived `NAIP_Tile_Analysis.ipynb`; access pattern now in `02`/`03`)
 
 Pulls a high-resolution NAIP chip centered on a USGS stream gauge to look for cottonwood gallery
 forest. Consumes the `usgs_gauges` layer of `cheyenne_corridor_aoi.gpkg` (notebook 00); feeds the
@@ -224,9 +398,10 @@ still-empty notebooks 03/04. Currently one gauge, one tile — the loop comes la
   a shared working-group notebook and was removed along with `boto3`.
 - **SAS tokens expire (~45 min).** A read that suddenly 403s means a stale token: re-run the STAC
   search cell, don't debug the raster.
-- **Gauge filter — this one bites.** The `usgs_gauges` layer holds 259 NLDI sites, but **211 are
-  15-digit groundwater/miscellaneous sites with no discharge record**. Only the **48 8-digit** ids
-  are surface-water stream gauges. Filter on `site_no.str.len() == 8` before doing anything else.
+- **Gauge filter — this one bites.** The `usgs_gauges` layer holds **275** NLDI sites, but **224
+  are 15-digit** groundwater/miscellaneous sites with no discharge record. Only the **51 8-digit**
+  ids are surface-water stream gauges. Filter on `site_no.str.len() == 8` before anything else.
+  (Counts re-checked against the file on 2026-09-11; earlier 259/211/48 figures were stale.)
 - **CRS: NAIP is EPSG:26913** (NAD83 / UTM 13N), the VBET pipeline is EPSG:32613 (WGS84 / UTM 13N).
   Same zone, different datum, ~1-2 m apart. The notebook takes the CRS off the opened raster and
   reprojects the gauge point into it rather than hardcoding either one.
@@ -235,6 +410,59 @@ still-empty notebooks 03/04. Currently one gauge, one tile — the loop comes la
   a ready-made series for the change detection in notebook 06.
 - Reads are windowed straight out of the COG under `GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR"`;
   nothing downloads a full tile.
+
+## NAIP Auto-Labels (`notebooks/PineRidge/03_NAIP_Segmentation_Labels.ipynb`)
+
+Phase 2. Segment → cluster → rule-assign, inside the valley bottom, producing training labels with
+no hand digitizing. Reads a VBET run + NAIP; writes a class raster, gallery patches, a validation
+sample, and a manifest.
+
+- **`VBET_RUN` in the config cell picks the input.** Defaults to `smoketest_redshirt` because that
+  is what exists; set it to `vbet_13TFJ` when Phase 1b lands and nothing else changes.
+- **`WINDOW_IDX` picks the walkthrough reach** from `EXAMPLE_WINDOWS` (default 2 = Red Shirt, the
+  validated one). `RUN_NAME` carries the gauge id, so the four windows don't overwrite each other.
+- **Works a window at a time, not a tile.** 60 cm over the 13TFJ valley bottom is ~6.3 G pixels.
+  Default is a 2 × 2 km window (11.1 M px, ~6 s to segment). Tile-scale runs loop windows.
+- **Shadow adjacency is the woody/herbaceous discriminator, not NDVI.** In July the wet meadow is
+  *greener* than the cottonwood canopy (0.31 vs 0.24). Shadow adjacency is 0.51 vs 0.03. See §5.2
+  of the plan — this was the surprise of Phase 2 and it is why the method works.
+- **Shadow is an absolute cut** (50% of scene median brightness), never a percentile — a percentile
+  declares a fixed share of any image to be shadow whether or not shadow is there.
+- **Rules are applied to k-means cluster means, not to pixels.** Ten decisions, printed as one
+  table. Do not turn this into a per-pixel threshold: the auditability is the point.
+- **HAND and distance-to-channel are computed and stored but deliberately excluded from the
+  clustering.** The segmentation is already clipped to the valley bottom, so valley membership
+  carries no information there — using it would be circular.
+- **SLIC runs unmasked, then segments are filtered by `valley_frac >= 0.5`.** Passing `mask=` to
+  `slic()` takes a different, far slower code path — it hung for minutes on 11 M px where the
+  unmasked call takes 6 s. Same answer, so don't "fix" this back.
+- **The class is `riparian_woody`, not `cottonwood`.** 4-band NAIP does not separate cottonwood
+  from willow. Renaming waits on a canopy height model.
+- **Planted trees classify as woody.** Shelterbelts and yard trees around ranch buildings come out
+  as gallery. `elongation` and `dist_chan_m` are on every patch so they can be screened; the screen
+  itself is a group decision and is not applied by default.
+- **`minimum_rotated_rectangle` warns on every rasterized polygon** in shapely 2.1.2 (`invalid
+  value` / `divide by zero` in `oriented_envelope`). Elongation is computed from the principal axes
+  of the patch outline instead — correlates 0.92 with the rectangle version and is warning-free.
+- **Outputs are committed with cells cleared**, per §11 of the plan: this repo is public and an
+  executed copy would embed a 60 cm gallery map. Figures from a verification run live in the
+  gitignored `data/<run>/figures/`.
+
+## Figures
+
+Every notebook's setup cell defines `FIG_DIR`, `FIG_DPI = 300` and a `savefig(name)` helper;
+the config cell sets `FIG_SUBDIR` (usually `= RUN_NAME`). Output lands in
+`figures/<FIG_SUBDIR>/<name>.png` at 300 dpi with `bbox_inches="tight"`.
+
+- **`figures/` is gitignored, but `figures/.gitkeep` is tracked**, so the folder exists on a
+  fresh clone with no setup step. Rules are `figures/*` + `!figures/.gitkeep`.
+- **Contents stay out of git deliberately** — the repo is public and an executed run embeds a
+  60 cm gallery map. Plan §11 is still an open CARE decision; flipping to tracked is a one-line
+  .gitignore change *after* sign-off, not before.
+- **`savefig()` must be called BEFORE `plt.show()`.** Showing a figure can clear it, and you
+  would silently write a blank page. All 13 existing call sites follow this; keep new ones in
+  the same order.
+- Skeleton notebooks `02`, `04`–`08` carry the helper but have no plots yet.
 
 ## Known Issues and Fixes
 
@@ -245,9 +473,28 @@ Esri, which needs no key: `.../Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{
 reference map, `.../World_Imagery/...` for aerial. Both are in notebooks 00 and 01.
 
 ### USGS gauge records are wildly uneven — check before analysing
-- `usgs_gauges` holds ~275 NLDI sites; only the **8-digit** ids are surface-water gauges.
+- `usgs_gauges` holds 275 NLDI sites; only the **51 8-digit** ids are surface-water gauges.
 - **06439500 Eagle Butte is discontinued**: 1934–1967, then only two partial years (2007–08).
   Its 2008 "annual mean" is inflated by a real 65,200 cfs flood and wrecks any multi-year plot.
+  It is **not** dropped from `00` — it has ~33 continuous years, clears `MIN_YEARS_PER_DOY`, and
+  draws in brown tagged `historic (no modern record)` via `MODERN_SINCE = 2010`. The corridor
+  envelope gives it its own dashed line plus **monthly 25–75th whiskers** for variability.
+  **Do not call it a pre-regulation baseline** — 1934–1967 straddles Angostura's completion
+  (~1949, still unverified per §17) rather than predating it. It is the only *long* record at the
+  downstream end of the corridor; that is the defensible claim.
+- **Use percentiles, not mean ± SD, for flow variability.** Daily discharge here is strongly
+  right-skewed, so a symmetric SD bar runs negative and cannot be drawn on the log axis at all.
+  Quartiles are also robust to the 2008 flood — verified: injecting a 65,200 cfs spike leaves the
+  June p75 unmoved, where a mean or a p90 would not be.
+- **No period covers all seven gauges** — Buffalo Gap starts (1968) the year Eagle Butte's main
+  record ends (1967), and intersecting all seven leaves only the flood-dominated 2007–08 blip.
+  So the corridor envelope at the end of `00` is **deliberately not period-matched**: it pools
+  every main-stem daily value by day of year and describes the corridor as one unit, with the
+  bands mixing between-gauge and between-year spread. Set `POOL_GAUGES` to exclude `06439500`
+  for a post-regulation-only view.
+- **Day-of-year 366 must be filtered** before mapping onto the non-leap `REF_YEAR`. pandas maps
+  `"2001-366"` to 2002-01-01 rather than raising, so on long records (Wasta has ~28 leap years,
+  well past the 10-year filter) it silently plants a point a year past the axis.
 - **06401500 Angostura is seasonal** — ~181 days/year since 1978. A "complete calendar year" filter
   silently discards a continuous 1945–2024 record. Notebook 00 requires a minimum number of
   contributing **years per day-of-year** instead.

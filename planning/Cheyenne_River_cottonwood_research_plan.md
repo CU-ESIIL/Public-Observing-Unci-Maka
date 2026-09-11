@@ -1,7 +1,7 @@
 # Research Plan — Mapping Cottonwood Gallery Forest along the Cheyenne River
 
 **Project:** ESIIL Observing Unci Maka (Pine Ridge / Cheyenne River)
-**Status:** Draft v0.2 · Last updated 2026-09-11
+**Status:** Draft v0.4 · Last updated 2026-09-11
 **Scope:** Cheyenne River corridor, Angostura Reservoir → Oahe Reservoir, South Dakota.
 
 > This is a **living document**. It is updated at phase gates (§16), not rewritten. Decisions are
@@ -19,15 +19,15 @@
 
 | Phase | Description | Status |
 |---|---|---|
-| 0 | Foundations — env, bug fixes, tiling, manifests | Not started |
+| 0 | Foundations — env, bug fixes, tiling, manifests | **Done 2026-09-11** |
 | 1a | Smoke test — VBET on a 20 × 20 km box at Red Shirt | **Passed 2026-09-11** |
-| 1b | Pilot valley bottom (VBET on 13TFJ) | Not started |
-| 2 | Pilot extent — NAIP auto-labels | Not started |
-| 3 | Phenology windows + Landsat cube | Not started |
-| 4 | Change — extent and condition | Not started |
-| 5 | Drivers — flow, water quality, drought | Not started |
+| 1b | Pilot valley bottom (VBET on 13TFJ) | **Run 2026-09-11** — 13.44 M cells, hydrology 1.5 s, HAND 0.0 m on stream, valley bottom 814 km² (8.14%), 212 patches. Gate needs the geomorphic eyeball against NAIP |
+| 2 | Pilot extent — NAIP auto-labels | **In progress** — notebook `03` built and run at Red Shirt; gate needs the validation sample interpreted |
+| 3 | Phenology windows + Landsat cube | Skeleton (`04`) |
+| 4 | Change — extent and condition | Skeletons (`05`, `06`) |
+| 5 | Drivers — flow, water quality, drought | Skeleton (`07`) |
 | 6 | Scale to corridor | Not started |
-| 7 | Products | Not started |
+| 7 | Products | Skeleton (`08`), gated on §11 |
 
 ## 0.2 Decision log
 
@@ -49,6 +49,27 @@
 | 2026-09-11 | **Analysis mask is `large` + `medium` drainage classes only** | The 162 small-class reaches are ephemeral badlands draws contributing >half the area and no gallery habitat. Cuts the Red Shirt valley bottom from 97.2 to 59.0 km² (24.3% → 14.7% of the box) |
 | 2026-09-11 | **Riparian NDVI screening deferred** | Excluding the small class achieves most of the same reduction with no imagery cost. Revisit only if tributary relic stands become a question worth the compute |
 | 2026-09-11 | **VBET also writes a binary uint8 mask raster**, burned from the same smoothed polygon as the GeoPackage | The mask is what clips imagery in Phases 2–4; deriving both from one geometry stops the raster and vector disagreeing |
+| 2026-09-11 | **AOI stays buffer-defined for now; a wholesale switch to HUC12 units is rejected** | Measured (§2.6): main-stem HUC12s hold only 62.7% of the validated valley bottom, and every HUC12 rule that holds 100% is 1.7–3× too big. A catchment unit cannot approximate a lateral corridor |
+| 2026-09-11 | **Any AOI must be validated as a superset of the valley bottom** — the current one is not | The 10 km buffer clips ~8% of the `01s` valley bottom in the tributary draws. This was assumed, never checked (§2.6) |
+| 2026-09-11 | **Replacing the 30 km tributary filter with a HUC8 exclusion is proposed, pending group review** | Dropping the Belle Fourche by its HUC8s (`10120201/2/3`) is a hydrologic statement; a 30 km radius is a guess that happens to work (§2.6) |
+| 2026-09-11 | **Phase 2 is built on a NAIP *window*, not a whole tile** | 60 cm over the 13TFJ valley bottom is ~6.3 G pixels. The notebook runs a 2 × 2 km window and loops; nothing needs the tile in memory at once |
+| 2026-09-11 | **Phase 2 runs against the `01s` smoke-test valley bottom until Phase 1b lands** | The method does not depend on which VBET run supplies the mask. `VBET_RUN` is a one-line config change, so Phase 2 was not blocked on Phase 1b |
+| 2026-09-11 | **Shadow adjacency is the primary woody/herbaceous discriminator** — needs group review | NDVI cannot separate cottonwood from wet meadow in July; both are green. A tree casts a shadow and grass does not, so "is there shadow within 5 m" is the closest thing to a canopy-height measurement available without lidar. It is what makes the woody cluster separate cleanly (§5.2) |
+| 2026-09-11 | **Shadow is an absolute brightness cut (50% of scene median), not a percentile** | A percentile declares a fixed share of *any* image to be shadow whether or not shadow is present. Measured 0.8% of pixels at Red Shirt 2022, which matches the visible tree shadows |
+| 2026-09-11 | **Rules are applied to k-means cluster means, never to pixels** | Ten auditable decisions printed in one table, instead of a threshold applied ten million times. This is what makes the class assignment arguable and portable |
+| 2026-09-11 | **Class is named `riparian_woody`, not `cottonwood`** | Confirms the §5.1 position with data: 4-band NAIP does not separate cottonwood from willow. Renaming waits on a canopy height model |
+| 2026-09-11 | **HAND and distance-to-channel describe patches but are excluded from the clustering** | Avoids the §5 circularity — the segmentation is already clipped to the valley bottom, so valley membership carries no information where it is applied |
+| 2026-09-11 | **Validation sample is generated by the labelling notebook and kept in a separate GeoPackage layer** | Stratified by mapped class with a recorded seed, never used in training. Generating it next to the labels is what makes it actually get interpreted (§6) |
+| 2026-09-11 | **Lead with the published NAIP-CHM 2023 tile; defer local inference** | Canopy height of mature gallery cottonwood does not change materially in one year, so the 2023 layer is a valid *static height attribute* for the 2022 labels. One 51 MB download with no new dependencies answers the §5.1 separability question; only if height separates the classes is PyTorch inference worth taking on. Explicitly **not** licensed by this: treating the 2022/2023 pair as a change signal, or assuming pixel-perfect co-registration |
+| 2026-09-11 | **DEM stays at 30 m for now; 10 m is supported and 1 m is rejected for VBET** | Measured from the 13TFJ run: 10 m is 9× cells (~14 s hydrology, 2.7 GB) and fine; 1 m is 900× (268 GB of intermediates, 48 GB per array in the numpy valley-bottom step) and a different product line `tiles_for_bbox()` cannot address |
+| 2026-09-11 | **Resolution-coupled parameters are derived from `DEM_RES_M`, not typed** | `DEM_PRODUCT` and `BREACH_DIST_CELLS` both change meaning with the grid, and both fail *silently* — a fixed 100-cell breach is 3 km at 30 m and 1 km at 10 m, and product "1" at `DEM_RES_M = 10` just upsamples 30 m data |
+| 2026-09-11 | **`slope_deg` is left un-derived and must be re-tuned empirically per resolution** | Slope is systematically steeper on a finer DEM, so 30 m thresholds silently shrink the valley bottom at 10 m for grid reasons. `01s` §9 measures the shift rather than guessing a correction factor |
+| 2026-09-11 | **NAIP-CHM (NTSG, 0.6 m CONUS) adopted as the candidate answer to §5.1**, download-first | 0.6 m matches the `03` grid exactly; RMSE 2.28 m against a 15–30 m vs 2–6 m cottonwood/willow separation; free HTTP, CC-BY. Local inference is MIT-licensed and possible but pulls in PyTorch — the dependency SAM was rejected for |
+| 2026-09-11 | **§18 renumbering adopted and executed** — notebooks are now `00`–`08`, `01s` moved to `checks/` | The stubs were 617 bytes and `03` was new, so renaming was still free. It gets expensive the moment the stubs are filled, and filling them was the next step |
+| 2026-09-11 | **`01a_DEM_Prefetch` folded into `01`; archived** | `01s` already did DEM fetch, mosaic, VAA join and WBT setup inline in 27 cells, and both notebooks had skip-if-exists guards, so the split bought no caching. `01a` had never been run. Also kills the awkward `01a`/`01b` lettering |
+| 2026-09-11 | **WhiteboxTools binary persistence lives in `scripts/setup_cyverse.sh`, not in a notebook** | The script already downloaded it, persisted it, and baked `WBT_PATH` into the kernel spec — `01a`'s copy cells were redundant. Notebooks only *use* what is there |
+| 2026-09-11 | **Walkthrough reaches are gauge-anchored**: one 2 × 2 km window per 8-digit gauge in 13TFJ (`06401500` Angostura, `06402600` Buffalo Gap, `06403700` Red Shirt, `06408650` Scenic) | Every window then has a flow record to read beside it in Phase 5, and Angostura-vs-Buffalo Gap straddles the dam effect (~2 cfs vs ~65 cfs median). Red Shirt is already validated |
+| 2026-09-11 | **MGRS square bounds derived by arithmetic, not a lookup table or the `mgrs` package** | The grid is deterministic: column letters repeat every 3 zones, rows every 2 zones and every 2,000,000 m of northing. ~20 readable lines, no new dependency, and it yields the CRS too — which matters because the corridor crosses into zone 14 |
 | 2026-09-11 | ~~The corridor spans seven MGRS squares, all in zone 13~~ **Superseded: nine squares across UTM zones 13 and 14** | Verified with the `mgrs` library. The corridor crosses the zone boundary at −102°; the original figure came from arithmetic that assumed a single zone (§2.5) |
 
 ---
@@ -177,6 +198,44 @@ consequences:
 
 ---
 
+### 2.6 The corridor AOI is buffer-defined — open decision
+
+`00_Study_Area-Cottonwoods.ipynb` defines the AOI from three arbitrary numbers: a 0.5° bounding-box
+pad, a **30 km** tributary filter (`TRIB_BUFFER_DEG = 0.27`, present to exclude the Belle Fourche),
+and a **10 km** main-stem buffer. None is derived from anything. Replacing them with HUC units was
+tested on 2026-09-11, using the `01s` valley bottom as the containment test — an AOI is only valid
+if it is a **superset of the valley bottom**.
+
+| AOI rule | HUC12s | km² | holds valley bottom |
+|---|---|---|---|
+| HUC12s touching the main stem | 43 | 3,966 | **62.7%** |
+| HUC12s touching any corridor flowline | 214 | 19,038 | 100% |
+| HUC12s intersecting the current AOI | 122 | 10,788 | 100% |
+| **current buffer AOI** | — | **6,225** | **91.7%** |
+| full Cheyenne basin at Eagle Butte | — | 62,690 | 100% |
+
+**Finding: there is no HUC12 selection rule that lands on the corridor.** A HUC12 is a *catchment*
+— it runs from the channel to the drainage divide. A riparian corridor is a *lateral* strip a short
+distance either side of the channel. The two geometries are orthogonal, so approximating one with
+the other either clips the corridor (main-stem HUC12s miss the tributary valley bottoms, which
+extend into neighbouring HUC12s) or swallows entire uplands.
+
+**Two real problems it did surface:**
+
+1. **The current AOI already clips the valley bottom by ~8%.** This is a latent bug, not a
+   hypothetical: the `01s` valley bottom extends past the 10 km buffer in the tributary draws. Any
+   AOI — buffer or otherwise — must be *validated* as a superset, and none has been.
+2. **HUC topology is the right tool for the tributary filter, not for the extent.** The 30 km
+   distance guess that excludes the Belle Fourche can be replaced by dropping its HUC8s
+   (`10120201`, `10120202`, `10120203`), which is a hydrologic statement rather than an arbitrary
+   radius. This is the part of the idea worth keeping.
+
+**Proposed split, for group decision (§12 — not settled here):** use **HUC8 topology for
+*selection*** (which reaches and gauges belong to the Cheyenne, replacing the 30 km filter), and a
+**valley-bottom-validated buffer for the *extent*** (which pixels get fetched). Note that the AOI's
+job is only ever to be a fetch boundary — once VBET runs, the **valley bottom is the real analysis
+extent**, so the AOI needs to be a safe superset, not an elegant object.
+
 ## 3. Core design — two scales, two products
 
 A **label-transfer** architecture is what makes "no hand-built training data" workable.
@@ -262,6 +321,38 @@ mitigations, in order:
   in every product and figure.
 
 ---
+
+### 5.2 What actually separates woody from herbaceous — shadow, not greenness
+
+Implemented in `03_Cottonwood_Training_Data.ipynb` and confirmed at Red Shirt on 2022 NAIP.
+
+The expectation going in was that NDVI would carry the woody/herbaceous split. **It does not.** In
+mid-July on this reach the wet-meadow point bars are *greener* than the cottonwood canopy — the
+herbaceous cluster sits at mean NDVI 0.31 against the woody cluster's 0.24. A greenness threshold
+alone puts the meadow in the gallery class and some of the gallery outside it.
+
+What separates them is that **a tree is a three-dimensional object and grass is not**:
+
+| Feature | How it is computed | Woody | Herbaceous |
+|---|---|---|---|
+| **Shadow adjacency** | shadow mask dilated ~5 m, averaged per segment | **0.51** | **0.03** |
+| Roughness | local SD of NIR over a 9 m window | 0.14 | 0.09 |
+| NDVI | segment mean | 0.24 | 0.31 |
+
+Shadow adjacency does nearly all the work. It is the closest available proxy for canopy height
+without lidar, and it is why the §5.1 mitigation ladder starts at "check 3DEP lidar coverage"
+rather than "add more spectral indices".
+
+**Two parameters this rests on, and their sensitivities:**
+
+- **Shadow is an absolute cut**, at 50% of scene median brightness — not a percentile. A percentile
+  labels a fixed share of any image as shadow whether or not any is present. At Red Shirt 2022 the
+  absolute cut found 0.8% of pixels, matching the visible tree shadows.
+- **Shadow length depends on sun elevation**, so it varies with acquisition date and latitude. NAIP
+  is flown in summer, which bounds the variation, but `VERIFY` this across the 2012–2022 epochs
+  before comparing patch areas between years — a longer-shadow epoch will map slightly more woody
+  area for the same trees. This is a **change-detection** risk, not an extent risk, and it is the
+  first thing to check in Phase 4.
 
 ## 6. Validation
 
@@ -607,12 +698,29 @@ assignment on 2022 NAIP within the 13TFJ mask. Interpret the validation sample.
 *Gate: is accuracy sufficient to transfer these as labels — and is cottonwood/willow separable, or
 is the honest class "riparian woody"? Record measured cost per tile (§13).*
 
+**In progress.** `notebooks/PineRidge/03_Cottonwood_Training_Data.ipynb` implements the label
+factory and has been run end to end on a 2 × 2 km window at Red Shirt against the `01s` valley
+bottom (NAIP `sd_m_4310217_se_13_060_20220713`, 2022, 60 cm):
+
+- 172,728 SLIC segments over 11.1 M pixels in 6 s; 112,022 of them inside the valley bottom.
+- k-means (k = 10, seed 42) produced one clean woody cluster — mean NDVI 0.24, shadow adjacency
+  0.51, roughness 0.14 — separated from a herbaceous cluster at NDVI 0.31 but shadow adjacency
+  0.03. **Shadow adjacency, not greenness, is what separates them.**
+- Mapped **7.7 ha of riparian woody canopy in 458 patches**, 2.9% of the 260 ha of valley bottom in
+  the window; the overlay tracks individual crowns along the channel.
+- 300 stratified validation points written for group interpretation.
+
+*Two gate questions remain open*: the accuracy number (needs the validation sample interpreted) and
+the cottonwood/willow question (needs lidar). Cost per tile is recorded in §17.
+
 **Phase 3 — Phenology + Landsat cube.** Derive seasonal windows from observed greenness curves (HLS
 for timing precision); build the annual Landsat composite stack over the pilot valley bottom.
 *Gate: is there a real late-season separability signal at 30 m? Record measured cost per tile.*
 
 **Phase 4 — Change.** Label transfer, benchmark-epoch classification, per-patch trend analysis,
-area-adjusted accuracy.
+area-adjusted accuracy. *If a canopy-height layer is in the design by this point, note that the
+published CHM is single-epoch (2023) for this area — per-epoch condition trends require running
+the model ourselves, which is a PyTorch dependency decision, not a data download (§17).*
 *Gate: is the change signal larger than its uncertainty?*
 
 **Phase 5 — Drivers.** Flow metrics, water-quality inventory, drought covariates, association
@@ -646,57 +754,90 @@ subject to §11 sign-off.
       headwater draws. Some may hold relic stands. Deferred, not dismissed — the cheapest test is
       an NDVI screen on NAIP once Phase 2 exists, per **NHD reach** (not per patch: connected
       components merge the main stem and every draw into one patch holding 95.6% of the area).
-- [ ] 3DEP lidar coverage over the Cheyenne corridor — materially changes the cottonwood/willow story.
+- [ ] **Validate the AOI against the valley bottom, and decide the AOI rule** (§2.6). The current
+      buffer clips ~8% of the `01s` valley bottom; no HUC12 rule fits the corridor. Proposed: HUC8
+      topology for reach/gauge *selection*, valley-bottom-validated buffer for *extent*.
+- [x] ~~3DEP lidar coverage over the Cheyenne corridor~~ — **answered 2026-09-11: it exists.** The
+      TNM Access API returns **150 1 m products** intersecting 13TFJ, from two projects
+      (`SD_Southwest_NRCS_SD_2018_D18`, `SD_BlackHills_D23`). Note these are bare-earth **DTM**,
+      not a CHM — a CHM needs DSM−DTM from the point cloud (LPC), which is a separate product.
+- [~] **CHM source for §5.1 — decided 2026-09-11: start with the published 2023 tile.**
+      Measured 2026-09-11: the published NAIP-CHM covers this
+      study area for **2023 only** — every other year has zero tiles in quad block 43102, so the
+      product is single-epoch here, not a time series. Options: (a) **download the 2023 tile** —
+      free, minutes, no dependencies, and enough to answer whether height separates cottonwood
+      from willow at all; (b) **run NTSG's MIT-licensed model on our own NAIP** — date-matches the
+      2022 labels and yields 2016–2022 (the 2012/2014 epochs are 1 m and outside the model's
+      0.6 m training distribution), but adds PyTorch, the dependency SAM was rejected for in §5;
+      (c) derive from the 3DEP point cloud — most work, fully independent.
+      **Adopted: (a) first, as a gate on (b).** The one-year offset is accepted because mature
+      canopy height is effectively static over that interval. Still open underneath this: whether
+      height actually separates the classes in our patches, and — only if it does — whether the
+      per-epoch series `06` would need is worth a PyTorch dependency.
+- [x] ~~MGRS tile index — `13TFJ` exists only as a comment string~~ — **done 2026-09-11.** `01` §2
+      derives any square's bounds *and* its EPSG code arithmetically (~20 lines, no `mgrs`
+      dependency); verified that Red Shirt falls inside 13TFJ and that the buffered grid is
+      13.44 M cells, matching §2.3. The square is written to the run GeoPackage as `mgrs_tile`.
 - [ ] NAIP epoch coverage across all of 13TFJ, not only gauge 06403700; and pre-2012 availability.
+      Notebook `02` is built to answer exactly this.
+- [ ] **Gauge coordinates for the three non-Red-Shirt walkthrough windows** are approximate
+      placeholders in the config cells, marked `VERIFY`. Replace from the `usgs_gauges` layer on
+      the first run of `02`.
+- [ ] **Screen planted trees out of the gallery product.** Shelterbelts and yard trees classify as
+      woody exactly like cottonwood — visible around the ranch buildings in the Red Shirt window.
+      `elongation` and `dist_chan_m` are carried on every patch so a screen is possible; what the
+      screen should be is a group decision, not a default.
 - [ ] Angostura Dam completion date (1949?) and the Edgemont / Craven Canyon mill operating period.
 - [ ] Water-quality station coverage — determines whether Q3's mining component is analytical or
       contextual.
-- [ ] Valley-bottom area as a fraction of tile area (after Phase 1) — sets the real scaling problem.
+- [~] **Valley-bottom area as a fraction of tile area** — **partly answered 2026-09-11.** The Red
+      Shirt smoke box is **14.7%** valley bottom (59.0 of 400 km²). Extrapolating that fraction to a
+      100 km square gives ~1,473 km² of valley bottom on 13TFJ, ~6.3 G pixels at 60 cm, and a measured
+      ~56 min of segmentation plus a network-bound (and parallelisable) imagery read. **Answered 2026-09-11 by the real 13TFJ run: 8.14%** (814 km² of 10,000), not 14.7% — the
+      smoke box was centred on the main stem and overstated it by ~1.8×. Re-scale the NAIP cost
+      estimates accordingly: ~814 km² of valley bottom, not ~1,473.
 - [ ] Phenological windows from observed greenness curves (Phase 3) — must not be assumed.
 
 ---
 
-## 18. Repo work implied by this plan
+## 18. Repo structure — executed 2026-09-11
 
-Proposed, **not yet executed** — confirm before any of it happens.
+The renumbering proposed in earlier drafts has been **carried out**. Notebook state verified
+against the files; the working table lives in `CLAUDE.md`.
 
-**Fix**
-- `01a_DEM_Prefetch.ipynb` — `DATA_DIR = _resolve_data_dir()` is overwritten two lines later by
-  `Path(os.environ.get("VBET_DATA_DIR", "../../data"))`. The walk-up is dead code; the fallback
-  resolves correctly *only* from `notebooks/PineRidge/`, by coincidence of directory depth. Make it
-  match notebooks `00` and `01`.
-- `NAIP_Tile_Analysis.ipynb` — `BUFFER_M = 5000` is a 10 km box while the comment says 2 km; the chip
-  is also clipped by the tile edge, so the gauge is not centered.
-- `01_HLS_reflectance.ipynb` / `02_HLS_reflectance.ipynb` — functionally duplicate (same 19 cells,
-  only the heading differs) and still pointed at the old Craven Canyon AOI. Retire both to
-  `archive/`; HLS returns in Phase 3 where it has a real job.
+| Notebook | Content | State |
+|---|---|---|
+| `00_Study_Area` | corridor AOI, flowlines, gauges | runs |
+| `01_VBET_ValleyBottom` | DEM → flowlines → hydrology → valley bottom, for one MGRS square | **rewritten, not yet run** |
+| `02_NAIP_Access` | NAIP epoch inventory across the tile + chip access | skeleton |
+| `03_NAIP_Segmentation_Labels` | auto-label factory | runs |
+| `04_Landsat_Phenology_Cube` | seasonal composites + **derived** windows | skeleton |
+| `05_Classification_and_Extent_Change` | label transfer, benchmark epochs | skeleton |
+| `06_Gallery_Condition_Trends` | per-patch time series | skeleton |
+| `07_Flow_and_WaterQuality_Drivers` | NWIS / WQP / drought | skeleton |
+| `08_Synthesis_and_Products` | community-facing outputs, gated on §11 | skeleton |
+| `checks/01s_VBET_SmokeTest` | standing environment check | runs |
 
-**Change**
-- `01_VBET_ValleyBottom.ipynb` — replace `D8FlowAccumulation` + `ExtractStreams` with a rasterized
-  NHD flowline network feeding `ElevationAboveStream` (§2.4). `FLOW_ACCUM_THRESHOLD` and
-  `STREAM_INIT_KM2` become unnecessary for stream definition; drainage-area classing reads
-  `totdasqkm` directly. The HUC-8 chunking path in section 8 also becomes unnecessary for
-  correctness, though it may still help on memory-constrained instances.
+**Skeleton** means: title stating what the notebook reads and writes, section headings, a
+complete config cell, and a manifest stub — with the analysis cells deliberately **empty**.
+Per §14 the markdown is not written in advance; the group fills these in together.
 
-**Add**
-- `environment.yml` — `scikit-learn`, `scikit-image`, `odc-stac`, `mgrs`. `docker/jupyterlab/
-  environment.yml` stays intentionally drifted on `whitebox` per `CLAUDE.md`; batch all
-  image-affecting changes for the next rebuild.
-- A tile-index notebook cell or small GeoPackage layer for the seven MGRS squares.
+**The blocker is cleared.** `01` no longer contains `d8_pointer`, `d8_flow_accumulation`,
+`extract_streams`, `FLOW_ACCUM_THRESHOLD` or the HUC-chunking section — verified by scan. It now
+runs the validated three-tool chain ported from `01s`, parameterised by `TILE` rather than by a
+centre point and a box half-width.
 
-**Renumbering (proposed — costs nothing while 03–06 are empty stubs; confirm before doing it)**
+**Archived** (`notebooks/archive/`): `01a_DEM_Prefetch` (folded into `01`), `NAIP_Tile_Analysis`
+(superseded by `02` and `03`), and the two duplicate HLS notebooks.
 
-| New | Content |
-|---|---|
-| `00_Study_Area` | exists |
-| `01a_DEM_Prefetch`, `01b_VBET_ValleyBottom` | exist (`01` → `01b`) |
-| `02_NAIP_Access` | from `NAIP_Tile_Analysis` |
-| `03_NAIP_Segmentation_Labels` | auto-label factory |
-| `04_Landsat_Phenology_Cube` | seasonal composites + windows |
-| `05_Classification_and_Extent_Change` | label transfer, benchmark epochs |
-| `06_Gallery_Condition_Trends` | per-patch time series |
-| `07_Flow_and_WaterQuality_Drivers` | NWIS / WQP |
-| `08_Synthesis_and_Products` | community-facing outputs |
+### Still outstanding
+
+- `environment.yml` — `scikit-learn`, `scikit-image`, `odc-stac` are needed by `03`; `mgrs` is
+  **no longer needed** (§2.1 geometry is arithmetic). `docker/jupyterlab/environment.yml` stays
+  intentionally drifted per `CLAUDE.md`; batch all image-affecting changes for the next rebuild.
+- The **first real run of `01` on 13TFJ** — the Phase 1b gate, and the thing everything
+  downstream is waiting on.
+- Repointing `03` at `vbet_13TFJ` and running the four walkthrough windows.
 
 ---
 
