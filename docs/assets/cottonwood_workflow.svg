@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 660" width="720" height="660"
+     font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5A6B7C"/>
+    </marker>
+    <style>
+      .box  { fill:#EEF2F7; stroke:#40556B; stroke-width:1.4; }
+      .prod { fill:#E7F1E9; stroke:#2E7D32; stroke-width:1.4; }
+      .n    { font-size:12px; fill:#7A8B9A; }
+      .t    { font-size:14.5px; fill:#1F2D3D; }
+      .in   { font-size:12px; fill:#7A8B9A; }
+      .ln   { stroke:#5A6B7C; stroke-width:1.4; fill:none; marker-end:url(#a); }
+      .lnp  { stroke:#5A6B7C; stroke-width:1.4; fill:none; }
+    </style>
+  </defs>
+
+  <rect width="720" height="660" fill="#FFFFFF"/>
+
+  <!-- main column -->
+  <g>
+    <rect class="box" x="255" y="30"  width="210" height="48" rx="6"/>
+    <text class="n" x="269" y="50">00</text><text class="t" x="269" y="66">Study area</text>
+
+    <rect class="box" x="255" y="120" width="210" height="48" rx="6"/>
+    <text class="n" x="269" y="140">01</text><text class="t" x="269" y="156">Valley bottom</text>
+
+    <rect class="box" x="255" y="210" width="210" height="48" rx="6"/>
+    <text class="n" x="269" y="230">03</text><text class="t" x="269" y="246">NAIP labels</text>
+
+    <rect class="box" x="255" y="300" width="210" height="48" rx="6"/>
+    <text class="n" x="269" y="320">04</text><text class="t" x="269" y="336">Landsat cube</text>
+  </g>
+
+  <!-- the two products -->
+  <rect class="prod" x="120" y="410" width="200" height="48" rx="6"/>
+  <text class="n" x="134" y="430">05</text><text class="t" x="134" y="446">Extent change</text>
+
+  <rect class="prod" x="400" y="410" width="200" height="48" rx="6"/>
+  <text class="n" x="414" y="430">06</text><text class="t" x="414" y="446">Condition trends</text>
+
+  <!-- downstream -->
+  <rect class="box" x="255" y="510" width="210" height="48" rx="6"/>
+  <text class="n" x="269" y="530">07</text><text class="t" x="269" y="546">Drivers</text>
+
+  <rect class="box" x="255" y="595" width="210" height="48" rx="6"/>
+  <text class="n" x="269" y="615">08</text><text class="t" x="269" y="631">Synthesis</text>
+
+  <!-- flow -->
+  <path class="ln" d="M360,78  L360,118"/>
+  <path class="ln" d="M360,168 L360,208"/>
+  <path class="ln" d="M360,258 L360,298"/>
+
+  <path class="lnp" d="M360,348 L360,380"/>
+  <path class="lnp" d="M220,380 L500,380"/>
+  <path class="ln"  d="M220,380 L220,408"/>
+  <path class="ln"  d="M500,380 L500,408"/>
+
+  <path class="lnp" d="M220,458 L220,488"/>
+  <path class="lnp" d="M500,458 L500,488"/>
+  <path class="lnp" d="M220,488 L500,488"/>
+  <path class="ln"  d="M360,488 L360,508"/>
+
+  <path class="ln" d="M360,558 L360,593"/>
+
+  <!-- inputs -->
+  <text class="in" x="238" y="149" text-anchor="end">3DEP DEM · NHD flowlines</text>
+  <path class="ln" d="M243,144 L253,144"/>
+
+  <text class="in" x="238" y="239" text-anchor="end">NAIP 60 cm · 02</text>
+  <path class="ln" d="M243,234 L253,234"/>
+
+  <text class="in" x="238" y="329" text-anchor="end">Landsat C2 L2</text>
+  <path class="ln" d="M243,324 L253,324"/>
+
+  <text class="in" x="238" y="539" text-anchor="end">gauges · water quality</text>
+  <path class="ln" d="M243,534 L253,534"/>
+</svg>

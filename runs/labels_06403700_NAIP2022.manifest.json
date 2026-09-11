@@ -1,11 +1,11 @@
 {
   "run_name": "labels_06403700_NAIP2022",
   "notebook": "03_NAIP_Segmentation_Labels.ipynb",
-  "created_utc": "2026-09-11T21:00:29+00:00",
-  "git_commit": "d187319",
+  "created_utc": "2026-09-11T22:44:45+00:00",
+  "git_commit": "f6f2597",
   "inputs": {
-    "vbet_run": "smoketest_redshirt",
-    "vbet_manifest": "smoketest_redshirt.manifest.json",
+    "vbet_run": "vbet_13TFJ_10m",
+    "vbet_manifest": "vbet_13TFJ_10m.manifest.json",
     "naip_stac_items": [
       "sd_m_4310217_se_13_060_20220713"
     ],
@@ -55,37 +55,37 @@
   },
   "results": {
     "window_km2": 4.0,
-    "valley_bottom_ha": 260.1,
-    "vbet_valley_frac": 0.1473,
-    "tile_scale_factor": 566.4,
+    "valley_bottom_ha": 246.2,
+    "vbet_valley_frac": 0.0604,
+    "tile_scale_factor": 245.4,
     "n_segments": 172728,
-    "n_segments_in_mask": 112022,
+    "n_segments_in_mask": 106015,
     "area_ha_by_class": {
-      "water": 2.4,
-      "riparian_woody": 8.74,
-      "shadow": 7.89,
-      "herbaceous": 24.59,
-      "sparse_bare": 206.16,
-      "bare_bright": 10.46
+      "water": 2.37,
+      "riparian_woody": 8.62,
+      "shadow": 7.82,
+      "herbaceous": 23.19,
+      "sparse_bare": 195.25,
+      "bare_bright": 9.04
     },
-    "gallery_ha": 7.67,
-    "gallery_pct_valley": 2.95,
-    "n_patches": 458,
+    "gallery_ha": 7.55,
+    "gallery_pct_valley": 3.07,
+    "n_patches": 455,
     "n_validation_points": 300,
     "cluster_class_map": {
-      "1": "herbaceous",
-      "5": "riparian_woody",
-      "9": "sparse_bare",
+      "2": "herbaceous",
+      "7": "riparian_woody",
+      "1": "sparse_bare",
       "3": "shadow",
-      "2": "sparse_bare",
-      "4": "sparse_bare",
-      "7": "bare_bright",
       "0": "sparse_bare",
-      "8": "sparse_bare",
-      "6": "water"
+      "9": "sparse_bare",
+      "5": "bare_bright",
+      "4": "sparse_bare",
+      "6": "sparse_bare",
+      "8": "water"
     },
-    "read_seconds": 38.6,
-    "slic_seconds": 6.3
+    "read_seconds": 0.1,
+    "slic_seconds": 6.0
   },
   "outputs": [
     "labels_06403700_NAIP2022_classes.tif",
