@@ -5,7 +5,11 @@ ESIIL working group bringing together Tribal members, scientists, and NASA resea
 
 ## Repo Structure
 ```
-notebooks/          # Main project Jupyter notebooks (00, 01a, 01–06 + STELLA/EMIT exploratories)
+notebooks/PineRidge/  # Cheyenne River cottonwood notebooks (00, 01a, 01, 01s, NAIP, 03–06 stubs)
+notebooks/Hopi/       # Blue Canyon EMIT/HLS exploratories
+notebooks/archive/    # Retired: the two duplicate HLS notebooks
+planning/           # Research plans — START HERE, see below
+runs/               # Run manifests (small JSON, tracked in git; the rasters are not)
 data/               # Study area boundaries + VBET intermediates (gitignored via *data/)
 tools/emit/         # NASA EMIT data tools (vendored, not a submodule)
 tools/STELLA/       # STELLA-Q2 field spectrometer CSV outputs
@@ -24,15 +28,43 @@ requirements.txt    # Docs-only (mkdocs/GitHub Pages CI) — NOT the project env
 
 The two `environment.yml` files should stay in sync on core packages. The docker one additionally includes JupyterLab infrastructure packages (`nb_conda_kernels`, `papermill`, `jupyterlab-geojson`, `openssh`, etc.).
 
-> **Deliberate drift — do not "fix":** the root `environment.yml` has `whitebox`, the docker one
-> does not. The VBET rework needs WhiteboxTools, but the Docker image is not being rebuilt right
-> now. On CyVerse that gap is closed by `scripts/setup_cyverse.sh`, which builds the env from
-> the root `environment.yml` into data-store. Add `whitebox` to
-> `docker/jupyterlab/environment.yml` at the same time as the next image rebuild.
+> **Deliberate drift — do not "fix":** the root `environment.yml` is ahead of the docker one.
+> The Docker image is not being rebuilt right now, and on CyVerse the gap is closed by
+> `scripts/setup_cyverse.sh`, which builds the env from the root `environment.yml` into
+> data-store.
+>
+> **Pending for the next image rebuild** — add all of these to `docker/jupyterlab/environment.yml`
+> at the same time: `whitebox`, `scikit-image`, `scikit-learn`, `odc-stac`, and pip `mgrs`.
 
 Note there is a **fourth** environment present on CyVerse that this repo does not define:
 `hyr-sense`, baked into the ESIIL image. It is Python 3.10 with an older pinned stack and is
 **not used** by these notebooks — see the warning below.
+
+## Cottonwood Mapping — read the plan first
+
+**`planning/Cheyenne_River_cottonwood_research_plan.md` is the source of truth** for the Cheyenne
+River cottonwood work: research questions, design, phase status, a decision log, and a `VERIFY`
+list of unchecked assumptions. It is a living document — update it at phase gates, append to the
+decision log rather than rewriting it.
+
+`planning/AZ_invasive_riparian_research_plan.md` is a separate geography. Neither supersedes the other.
+
+### Decisions that are settled (do not relitigate)
+
+| Decision | Value |
+|---|---|
+| Tiling unit | **MGRS 100-km squares**; HLS/Sentinel-2 granules already ship on this grid |
+| Pilot tile | **13TFJ** — holds Angostura, Buffalo Gap, Red Shirt, Scenic |
+| Corridor extent | **9 MGRS squares across UTM zones 13 AND 14** — it crosses the −102° boundary, so EPSG:32613 is *not* right corridor-wide |
+| Analysis mask | **large + medium drainage classes only**; the 162 small-class badlands draws are excluded |
+| Code organisation | **Notebooks, no `src/` package** — these are a teaching product; readability beats DRY |
+| GEE | Deferred, not excluded; revisit only on measured cost evidence |
+| Reproducibility | Run manifests always committed to `runs/`; rasters never in git |
+| WhiteboxTools | **MIT core tools only, no plugins/extensions** (see below) |
+
+### Phase status
+Phase 0 (foundations) and Phase 1a (VBET smoke test) are **done**. Phase 1b (VBET on all of 13TFJ)
+and Phase 2 (NAIP auto-labels) are next.
 
 ## Key Environment Decisions Made
 - **Slimmed root `environment.yml`** to ~23 packages (was 38). Removed transitive deps (shapely, pyproj, bokeh, fsspec, aiohttp, requests) and EMIT-only packages (panel, spectral, scikit-image, netCDF4, h5netcdf, s3fs, zarr, cartopy). These can be pip-installed separately when needed.
@@ -91,6 +123,8 @@ clip cottonwood classification to.
 | `00_Study_Area-Cottonwoods.ipynb` | `cheyenne_corridor_aoi.gpkg` — corridor AOI + flowlines + gauges |
 | `01a_DEM_Prefetch.ipynb` | `cheyenne_dem_30m.tif`, `cheyenne_flowlines_vaa.gpkg`, persistent WBT binary |
 | `01_VBET_ValleyBottom.ipynb` | `cheyenne_valley_bottom.gpkg`, `cheyenne_valley_mask_30m.tif` |
+| `01s_VBET_SmokeTest.ipynb` | 20 × 20 km box at Red Shirt — runs in seconds, validates the whole chain. **Run this first on a new machine.** Writes patches, a binary uint8 mask for clipping imagery, and a manifest. |
+| `NAIP_Tile_Analysis.ipynb` | NAIP chip via Planetary Computer (anonymous) |
 
 **Scale**: corridor AOI is ~6,225 km² over a 228 × 187 km envelope, 8,964 NHD reaches
 (17,361 km). At 30 m that is ~47 M cells.
@@ -109,10 +143,29 @@ and clips in a single pass.
 
 ### Hydrology — WhiteboxTools, not pysheds
 `pysheds` holds several full-grid float32 arrays in Python memory at once (~190 MB each at 30 m),
-which is the memory wall on CyVerse. WBT is a multithreaded Rust engine that streams to/from
-disk. Chain: `BreachDepressionsLeastCost` → `D8Pointer` → `D8FlowAccumulation` →
-`ExtractStreams` → `ElevationAboveStream` (HAND) → `Slope`. Breaching replaces the
-`fill_pits → fill_depressions → resolve_flats` chain and is the single largest speedup.
+which is the memory wall on CyVerse. WBT is a multithreaded Rust engine that streams to/from disk.
+
+**The chain changed in Sept 2026 — three tools, not six:**
+```
+BreachDepressionsLeastCost → ElevationAboveStream (HAND, vs rasterized NHD) → Slope
+```
+`D8FlowAccumulation` → `ExtractStreams` was dropped because **flow accumulation is the only
+globally-dependent step**: it needs the whole upstream watershed, so it cannot be computed
+correctly inside a clipped tile — streams entering from outside start at zero. The NHD flowlines
+are used as the stream network instead, and they already carry surveyed `totdasqkm`. `D8Pointer`
+went with it: `elevation_above_stream(dem, streams, output)` takes no pointer and derives its own
+flow paths. Every remaining step is local, so **tile seams stop mattering**.
+
+Verified at Red Shirt: HAND is exactly 0 m at every stream cell, nodata 2.3% (box edges only),
+all three steps 0.1 s on 0.44 M cells. Median NHD-vs-terrain offset 2.5 m, so no snapping needed
+*there* — re-check when moving beyond 13TFJ.
+
+**WhiteboxTools licensing (checked 2026-09-11):** the core is **MIT** and all three tools used are
+in the core binary, not the 25 bundled plugins. The commercial surface (Whitebox Toolset Extension,
+the vendor's own Python line) is not in our path. **Rule: core tools only.** If a step needs a
+plugin — note the lidar tools *are* plugins — switch to `lidR`/PDAL/GRASS rather than buy a licence.
+The dependency is shallow by design: `gdaldem slope`, RichDEM/GRASS `r.hydrodem`, and GRASS
+`r.stream.distance` cover all three.
 
 **CyVerse gotcha**: `WhiteboxTools()` calls `download_wbt()` from its constructor, fetching a
 ~200 MB binary into the `whitebox` package dir under `/opt/conda`, which does not persist.
@@ -158,7 +211,48 @@ corrupt flow accumulation and HAND at every seam.
   to the same burn value already unions them; the union was pure waste.
 - Output provenance recorded `gauge_id` even for full-corridor runs.
 
+## NAIP Imagery (`notebooks/PineRidge/NAIP_Tile_Analysis.ipynb`)
+
+Pulls a high-resolution NAIP chip centered on a USGS stream gauge to look for cottonwood gallery
+forest. Consumes the `usgs_gauges` layer of `cheyenne_corridor_aoi.gpkg` (notebook 00); feeds the
+still-empty notebooks 03/04. Currently one gauge, one tile — the loop comes later.
+
+- **Source is Planetary Computer STAC, not AWS.** `https://planetarycomputer.microsoft.com/api/stac/v1`,
+  collection `naip`, with `modifier=planetary_computer.sign_inplace`. Signing works **anonymously**
+  — no account, no subscription key. The original notebook used requester-pays
+  `s3://naip-analytic`, which needs per-user AWS keys and bills egress; that is the wrong shape for
+  a shared working-group notebook and was removed along with `boto3`.
+- **SAS tokens expire (~45 min).** A read that suddenly 403s means a stale token: re-run the STAC
+  search cell, don't debug the raster.
+- **Gauge filter — this one bites.** The `usgs_gauges` layer holds 259 NLDI sites, but **211 are
+  15-digit groundwater/miscellaneous sites with no discharge record**. Only the **48 8-digit** ids
+  are surface-water stream gauges. Filter on `site_no.str.len() == 8` before doing anything else.
+- **CRS: NAIP is EPSG:26913** (NAD83 / UTM 13N), the VBET pipeline is EPSG:32613 (WGS84 / UTM 13N).
+  Same zone, different datum, ~1-2 m apart. The notebook takes the CRS off the opened raster and
+  reprojects the gauge point into it rather than hardcoding either one.
+- **PC catalog ends at 2023**, so 2022 is the newest South Dakota epoch available there. Gauge
+  06403700 (Red Shirt) has 7 epochs: 2012 and 2014 at 1 m, 2016/2018/2020/2021/2022 at 60 cm —
+  a ready-made series for the change detection in notebook 06.
+- Reads are windowed straight out of the COG under `GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR"`;
+  nothing downloads a full tile.
+
 ## Known Issues and Fixes
+
+### Folium basemap shows "API KEY REQUIRED"
+CARTO now requires an API key. Their servers still return HTTP 200 — they burn the watermark into
+the tile — so it fails silently rather than erroring. Do not use `tiles="CartoDB positron"`. Use
+Esri, which needs no key: `.../Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}` for a light
+reference map, `.../World_Imagery/...` for aerial. Both are in notebooks 00 and 01.
+
+### USGS gauge records are wildly uneven — check before analysing
+- `usgs_gauges` holds ~275 NLDI sites; only the **8-digit** ids are surface-water gauges.
+- **06439500 Eagle Butte is discontinued**: 1934–1967, then only two partial years (2007–08).
+  Its 2008 "annual mean" is inflated by a real 65,200 cfs flood and wrecks any multi-year plot.
+- **06401500 Angostura is seasonal** — ~181 days/year since 1978. A "complete calendar year" filter
+  silently discards a continuous 1945–2024 record. Notebook 00 requires a minimum number of
+  contributing **years per day-of-year** instead.
+- **Wasta (93 yrs) and Plainview (54 yrs)** are the only gauges spanning the full Landsat record.
+- Median flow below Angostura is **~2 cfs** vs **~65 cfs** at Buffalo Gap just downstream.
 ### PROJ/CRS Errors (`pyproj unable to set PROJ database path` / `CRSError: no database context`)
 - **Root cause**: Jupyter kernel starts without `conda activate`, so PROJ_DATA/GDAL_DATA env vars are never set.
 - **Fix 1 (preferred)**: Use the `--env` flags in the `ipykernel install` command above — bakes paths into the kernel spec.
