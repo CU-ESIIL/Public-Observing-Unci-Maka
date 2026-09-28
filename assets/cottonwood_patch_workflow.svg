@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 600" width="1280" height="600"
+     font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5A6B7C"/>
+    </marker>
+    <style>
+      .box  { fill:#EEF2F7; stroke:#40556B; stroke-width:1.3; }
+      .key  { fill:#E7F1E9; stroke:#2E7D32; stroke-width:1.5; }
+      .out  { fill:#FBEFE4; stroke:#B4610F; stroke-width:1.6; }
+      .t    { font-size:13px; fill:#1F2D3D; }
+      .s    { font-size:10px; fill:#7A8B9A; }
+      .lane { font-size:10.5px; fill:#9AA8B4; letter-spacing:1.3px; }
+      .ln   { stroke:#5A6B7C; stroke-width:1.3; fill:none; marker-end:url(#a); }
+      .lnp  { stroke:#5A6B7C; stroke-width:1.3; fill:none; }
+      .lbl  { font-size:9.5px; fill:#7A8B9A; }
+    </style>
+  </defs>
+  <rect width="1280" height="600" fill="#FFFFFF"/>
+
+  <!-- ================= lane 1 : valley bottom ================= -->
+  <text class="lane" x="60" y="50">01 · VALLEY BOTTOM</text>
+
+  <rect class="box" x="60"  y="68"  width="150" height="52" rx="6"/>
+  <text class="t" x="74" y="90">3DEP DEM</text><text class="s" x="74" y="106">1 arc-second</text>
+
+  <rect class="box" x="60"  y="140" width="150" height="52" rx="6"/>
+  <text class="t" x="74" y="162">NHD flowlines</text><text class="s" x="74" y="178">drainage area</text>
+
+  <rect class="box" x="232" y="68"  width="150" height="52" rx="6"/>
+  <text class="t" x="246" y="90">Breach</text><text class="s" x="246" y="106">least-cost</text>
+
+  <rect class="box" x="232" y="140" width="150" height="52" rx="6"/>
+  <text class="t" x="246" y="162">Stream raster</text><text class="s" x="246" y="178">burned channels</text>
+
+  <rect class="box" x="404" y="68"  width="150" height="52" rx="6"/>
+  <text class="t" x="418" y="90">Slope</text><text class="s" x="418" y="106">degrees</text>
+
+  <rect class="box" x="404" y="140" width="150" height="52" rx="6"/>
+  <text class="t" x="418" y="162">HAND</text><text class="s" x="418" y="178">height above stream</text>
+
+  <rect class="key" x="576" y="104" width="150" height="52" rx="6"/>
+  <text class="t" x="590" y="126">Valley bottom</text><text class="s" x="590" y="142">HAND · slope · class</text>
+
+  <path class="ln" d="M210,94  L230,94"/>
+  <path class="ln" d="M210,166 L230,166"/>
+  <path class="ln" d="M382,94  L402,94"/>
+  <path class="ln" d="M382,166 L402,166"/>
+  <path class="lnp" d="M307,120 L307,130 L479,130"/>
+  <path class="ln"  d="M479,130 L479,138"/>
+  <path class="lnp" d="M554,94  L565,94 L565,122"/>
+  <path class="ln"  d="M565,122 L574,122"/>
+  <path class="lnp" d="M554,166 L565,166 L565,140"/>
+  <path class="ln"  d="M565,140 L574,140"/>
+
+  <!-- ================= lane 2 : window ================= -->
+  <text class="lane" x="60" y="254">00 · WINDOW</text>
+
+  <rect class="box" x="60"  y="272" width="150" height="52" rx="6"/>
+  <text class="t" x="74" y="294">USGS gauge</text><text class="s" x="74" y="310">8-digit, main stem</text>
+
+  <rect class="box" x="232" y="272" width="150" height="52" rx="6"/>
+  <text class="t" x="246" y="294">Window</text><text class="s" x="246" y="310">2 × 2 km</text>
+
+  <path class="ln" d="M210,298 L230,298"/>
+  <path class="ln" d="M307,324 L307,390"/>
+
+  <!-- ============ lane 3 : imagery and classification ============ -->
+  <text class="lane" x="232" y="374">02–03 · IMAGERY → CLASSIFICATION</text>
+
+  <rect class="box" x="232"  y="392" width="150" height="52" rx="6"/>
+  <text class="t" x="246" y="414">NAIP chip</text><text class="s" x="246" y="430">60 cm, 4-band</text>
+
+  <rect class="box" x="404"  y="392" width="150" height="52" rx="6"/>
+  <text class="t" x="418" y="414">Features</text><text class="s" x="418" y="430">NDVI · texture · shadow</text>
+
+  <rect class="box" x="576"  y="392" width="150" height="52" rx="6"/>
+  <text class="t" x="590" y="414">Segment</text><text class="s" x="590" y="430">SLIC superpixels</text>
+
+  <rect class="box" x="748"  y="392" width="150" height="52" rx="6"/>
+  <text class="t" x="762" y="414">Describe</text><text class="s" x="762" y="430">segment means</text>
+
+  <rect class="box" x="920"  y="392" width="150" height="52" rx="6"/>
+  <text class="t" x="934" y="414">Cluster</text><text class="s" x="934" y="430">k-means, k = 10</text>
+
+  <rect class="box" x="1092" y="392" width="150" height="52" rx="6"/>
+  <text class="t" x="1106" y="414">Assign</text><text class="s" x="1106" y="430">rules on cluster means</text>
+
+  <path class="ln" d="M382,418  L402,418"/>
+  <path class="ln" d="M554,418  L574,418"/>
+  <path class="ln" d="M726,418  L746,418"/>
+  <path class="ln" d="M898,418  L918,418"/>
+  <path class="ln" d="M1070,418 L1090,418"/>
+
+  <!-- valley bottom constrains which segments are kept -->
+  <path class="lnp" d="M651,156 L651,346 L823,346"/>
+  <path class="ln"  d="M823,346 L823,390"/>
+  <text class="lbl" x="833" y="342">keep segments ≥ 50% inside</text>
+
+  <!-- ================= output ================= -->
+  <rect class="out" x="920" y="500" width="322" height="56" rx="6"/>
+  <text class="t" x="936" y="524" font-size="14.5">Riparian woody patch map</text>
+  <text class="s" x="936" y="541">gallery patches · validation sample</text>
+
+  <path class="ln" d="M1167,444 L1167,498"/>
+</svg>
