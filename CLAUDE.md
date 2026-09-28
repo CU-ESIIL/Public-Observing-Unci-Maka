@@ -118,24 +118,24 @@ NAIP epoch-coverage item; (4) interpret the validation sample.
 - **EMIT tools** (spectral, scikit-image, netCDF4, panel, s3fs) can be added with `pip install spectral scikit-image netCDF4 panel s3fs zarr` when running EMIT notebooks.
 
 ## CyVerse Deployment — Critical Facts
-- **Deployment**: Docker image built from `docker/jupyterlab/Dockerfile` → pushed to DockerHub → used by CyVerse "JupyterLab ESIIL" app.
+- **App (settled 2026-09-28): "JupyterLab ESIIL"** — same app ESIIL's own CyVerse guide uses, and lighter than "HYR SENSE 2024" (the group's pre-working-group app, considered and set aside; it also works since the env is self-built). The repo's Docker image (`docker/jupyterlab/Dockerfile` → DockerHub) is what the app runs, but it is not being rebuilt right now.
 - **GitHub Actions**: `build-and-push-jupyterlab-image.yml` (manual trigger) builds/pushes the image. `gh-pages.yml` (push to main) deploys mkdocs site.
-- **Ephemeral containers**: envs *you create* in `/opt/conda/envs/` do NOT persist, and neither do `pip install`s into an existing env. But conda's `--prefix` can place an env anywhere — putting it in `~/data-store/` makes it persist. That is the whole trick.
-- **Persistent storage**: `/home/jovyan/data-store/` persists. Clone the repo there, and keep envs/binaries/data there too.
-- **Kernel registrations never persist** — `scripts/setup_cyverse.sh` re-registers each session; that is the only step that genuinely must repeat.
+- **What persists (CORRECTED 2026-09-28):** only `~/data-store/home/<cyverse-username>/` (the CSI-mounted Data Store; plus `.../home/shared/`). The **`~/data-store/` root does NOT persist** — it behaves like local disk, which Max confirmed by watching a clone vanish. Earlier notes saying "data-store persists" meant the root and were wrong.
+- **Decision for now (Max, 2026-09-28): clone + build every analysis, ~5-10 min.** The persistent mount is a slow small-file network filesystem and a conda env is ~50k small files, so building on it is untested. Repo is cloned into `~` (the guide's commands assume `~/Public-Observing-Unci-Maka`). Later fix to evaluate: build locally, `tar` into the persistent folder, untar each analysis — CyVerse's own recommendation for many small files.
+- **Only the GitHub key/gitconfig go to the persistent folder.** `IPLANT_USER` holds the CyVerse username in VICE (Linux user is always `jovyan`); both scripts fall back to the single non-`shared` dir under `~/data-store/home/`, and accept `PERSIST_DIR=`.
+- **Kernel registrations never persist** — `scripts/setup_cyverse.sh` re-registers; within one analysis a re-run takes seconds.
 - **Memory constraint**: CyVerse containers have limited RAM. `mamba env create` with large envs segfaults. Fix: `conda config --set fetch_threads 1 && conda config --set extract_threads 1` before install.
 
 ## CyVerse Setup Sequence (Every Session)
 ```bash
-cd ~/data-store/Public-Observing-Unci-Maka && git pull
-bash scripts/setup_cyverse.sh
+git clone https://github.com/CU-ESIIL/Public-Observing-Unci-Maka.git
+bash ~/Public-Observing-Unci-Maka/scripts/setup_cyverse.sh
 ```
 Then refresh the browser tab and pick the "Python (Unci Maka / VBET)" kernel.
 
-`scripts/setup_cyverse.sh` builds a **self-contained conda env at a prefix in data-store**:
-`mamba env create --prefix ~/data-store/envs/unci-maka -f environment.yml`. Conda envs do not
-have to live in `/opt/conda/envs` — `--prefix` puts one in persistent storage, so it is built
-once (10-20 min) and reused. Only kernel registration repeats each session.
+`scripts/setup_cyverse.sh` builds a **self-contained conda env** with
+`mamba env create --prefix ~/data-store/envs/unci-maka -f environment.yml` (~5-10 min). That
+prefix is at the non-persistent data-store root, so it is rebuilt each analysis — see above.
 
 **Do NOT layer a venv on HYR-SENSE.** This was tried and fails in two directions at once:
 pip installs a new numpy into the venv which shadows HYR-SENSE's numpy but not its
@@ -150,6 +150,18 @@ The script verifies the stack (numpy/pandas/pyarrow ABI, pyproj EPSG:32613, pynh
 kernels pointing into `data-store/envs`, and never touches image-provided kernels.
 
 Override the location with `ENV_DIR=<path>`; rebuild with `--recreate`.
+
+**Instance size (docs guide, 2026-09-28):** 4 cores / 8 GiB / 64 GiB disk for everything at 30 m;
+16 GiB if `DEM_RES_M = 10`. Estimated from measured array sizes, not benchmarked on CyVerse. The
+guide launches **JupyterLab ESIIL** (see CyVerse Deployment) and links ESIIL's general guide
+(cu-esiil.github.io/Postdoc_OASIS/resources/cyverse_basics/) for login/launch rather than duplicating it.
+
+**Pushing from CyVerse is optional and one-time.** Cloning/pulling the public repo over HTTPS needs
+no credentials. For push, `scripts/setup_github.sh` (run once) stores an ed25519 key and a
+`.gitconfig` in `~/data-store/home/<username>/`; `setup_cyverse.sh` step 0 copies both back into
+`~/.ssh` / `~/.gitconfig` every analysis (copying, not symlinking — the mount drops the 600 perms ssh requires). The gitconfig rewrites `https://github.com/` → `git@github.com:`
+so the HTTPS clone pushes over SSH while pulls stay anonymous (`pushInsteadOf`, not `insteadOf`, so a missing key never breaks `git pull`). ESIIL's `cyverse-utils` keypair notebook writes to `~/.ssh`,
+which is wiped each session — that is why we don't link it as the primary method.
 
 ### PROJ path resolution in the notebooks
 All three notebooks use a `_find_share()` helper that checks `sys.prefix` **then**
@@ -360,8 +372,9 @@ from the working directory to the repo root (`.git` / `environment.yml`) and ret
 `<repo>/data`, else falls back to `../data`. Walking up makes it cwd-independent, so it works
 from `notebooks/`, from the repo root, and under papermill.
 
-**Do not set `VBET_DATA_DIR` in the kernel spec.** On CyVerse the repo is cloned into
-`~/data-store`, so `<repo>/data` is already persistent — no redirect is needed. An earlier
+**Do not set `VBET_DATA_DIR` in the kernel spec.** `<repo>/data` is where the notebooks expect
+their inputs (the AOI gpkg is in the repo). On CyVerse it is NOT persistent (see CyVerse
+Deployment) — copy outputs to `~/data-store/home/<user>/` before the analysis ends. An earlier
 version of `setup_cyverse.sh` pointed it at a fresh empty directory, which overrode the repo
 path and caused `cheyenne_corridor_aoi.gpkg not found` while the file sat in the repo. Set it
 manually only to relocate the big rasters somewhere else.
@@ -515,8 +528,8 @@ Set thread limits before running: `conda config --set fetch_threads 1 && conda c
 
 ### `EnvironmentNameNotFound` / kernel missing after a session restart
 Expected — kernel registrations never persist. Re-run `bash scripts/setup_cyverse.sh` and refresh
-the browser tab. The conda env and WBT binary in `~/data-store/` are detected and reused, so
-this takes seconds, not minutes.
+the browser tab. Within the same analysis the conda env and WBT binary are detected and reused,
+so this takes seconds; on a new analysis they are gone and it rebuilds (~5-10 min).
 
 ### `_ARRAY_API not found` / `cannot import name 'ClientConnectorDNSError'`
 The notebook is running on the **hyr-sense kernel**, not `unci-maka`. Switch kernels and restart.

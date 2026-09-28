@@ -217,6 +217,8 @@ Cloning the repository essentially sets up a folder on your local machine that i
 
 ### Instructions for working in <ins>CyVerse</ins>
 
-1. Login to [CyVerse](https://cyverse.org/) if you have an account, or email maxwell.cook@colorado.edu for access
+See the step-by-step guide: [docs/resources/cyverse_basics.md](docs/resources/cyverse_basics.md)
+(also on the [docs site](https://cu-esiil.github.io/Public-Observing-Unci-Maka/resources/cyverse_basics/)).
+Email maxwell.cook@colorado.edu for CyVerse access.
 
 

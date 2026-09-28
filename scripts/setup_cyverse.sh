@@ -10,11 +10,14 @@
 #   Builds a self-contained conda environment from environment.yml at a PREFIX
 #   inside ~/data-store, then registers it as a Jupyter kernel.
 #
-# WHY A PREFIX ENV IN data-store
-#   Conda environments do not have to live in /opt/conda/envs. `--prefix` puts
-#   one anywhere, so putting it in ~/data-store makes it persist across
-#   sessions. It is built ONCE (10-20 min) and reused forever after; only the
-#   kernel registration has to repeat each session, which takes seconds.
+# WHERE THINGS LIVE (checked 2026-09-28)
+#   Only ~/data-store/home/<cyverse-username>/ survives between analyses. The
+#   ~/data-store ROOT does not — it behaves like local disk. The env and WBT
+#   binary are built at that root on purpose: the persistent mount is a slow
+#   network filesystem and a conda env is ~50k small files. So for now the
+#   env is rebuilt every analysis (~5-10 min). Within one analysis re-running
+#   this script is seconds. Only the GitHub key/gitconfig go to the
+#   persistent folder (see setup_github.sh).
 #
 # WHY NOT LAYER ON HYR-SENSE
 #   An earlier version of this script built a venv with --system-site-packages
@@ -58,6 +61,36 @@ command -v conda >/dev/null || die "conda not found on PATH."
 if command -v mamba >/dev/null; then SOLVER=mamba; else SOLVER=conda; fi
 
 # -----------------------------------------------------------------------------
+say "0. GitHub credentials (optional)"
+# -----------------------------------------------------------------------------
+# ~/.ssh and ~/.gitconfig are wiped every analysis. scripts/setup_github.sh
+# keeps them in the persistent ~/data-store/home/<username>/ folder; this
+# copies them back so push works. Skipped for people who only run notebooks.
+find_persist_dir() {
+    local base="$HOME/data-store/home"
+    if [[ -n "${IPLANT_USER:-}" && -d "$base/$IPLANT_USER" ]]; then
+        echo "$base/$IPLANT_USER"; return
+    fi
+    local d found=""
+    for d in "$base"/*/; do
+        d="${d%/}"; [[ -d "$d" && "$(basename "$d")" != "shared" ]] && found="$d"
+    done
+    echo "$found"
+}
+PERSIST_DIR="${PERSIST_DIR:-$(find_persist_dir)}"
+if [[ -n "$PERSIST_DIR" && -f "$PERSIST_DIR/.ssh/id_ed25519" ]]; then
+    mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
+    cp "$PERSIST_DIR/.ssh/id_ed25519" "$PERSIST_DIR/.ssh/id_ed25519.pub" "$HOME/.ssh/"
+    chmod 600 "$HOME/.ssh/id_ed25519"
+    grep -q "github.com" "$HOME/.ssh/known_hosts" 2>/dev/null \
+        || ssh-keyscan -t ed25519 github.com 2>/dev/null >> "$HOME/.ssh/known_hosts"
+    [[ -f "$PERSIST_DIR/.gitconfig" ]] && cp "$PERSIST_DIR/.gitconfig" "$HOME/.gitconfig"
+    ok "restored SSH key and git identity from $PERSIST_DIR"
+else
+    ok "no GitHub key found — fine unless you plan to push (see scripts/setup_github.sh)"
+fi
+
+# -----------------------------------------------------------------------------
 say "1. Checking target: $ENV_DIR"
 # -----------------------------------------------------------------------------
 # A leftover venv from the old overlay approach lives at this same path and
@@ -80,8 +113,7 @@ if [[ -x "$ENV_DIR/bin/python" ]]; then
     ok "reusing $ENV_DIR"
     ok "$("$ENV_DIR/bin/python" -V 2>&1)"
 else
-    echo "   Building from $ENV_YML"
-    echo "   This is a ONE-TIME cost (10-20 min). It persists in data-store."
+    echo "   Building from $ENV_YML (~5-10 min)"
     echo
 
     # CyVerse containers are memory-limited; parallel fetch/extract is the
@@ -237,16 +269,21 @@ cat <<EOF
 
 $(printf '\033[1m== Done\033[0m')
 
-  Environment   : $ENV_DIR  (persists)
-  WhiteboxTools : $WBT_DIR  (persists)
-  Notebook data : $REPO_ROOT/data  (persists — the repo is in data-store)
-  Kernel        : "$KERNEL_DISPLAY"  (re-run this script each session)
+  Environment   : $ENV_DIR
+  WhiteboxTools : $WBT_DIR
+  Notebook data : $REPO_ROOT/data
+  Kernel        : "$KERNEL_DISPLAY"
+
+  NOTE: only ~/data-store/home/<your-username>/ survives a new analysis.
+  Everything above is rebuilt next time (~5-10 min). Copy any outputs you
+  want to keep into that folder before the analysis ends.
 
 Next:
   1. Refresh the browser tab (the kernel list is fetched on page load).
   2. Open a notebook, pick "$KERNEL_DISPLAY", and RESTART the kernel if the
      notebook was already open with the old one.
-  3. Run notebooks in order: 00 -> 01a -> 01.
+  3. Run notebooks/PineRidge/checks/01s_VBET_SmokeTest.ipynb first, then
+     00 -> 01 -> 03.
 
 Do NOT use the HYR-SENSE kernel for these notebooks — its Python 3.10 stack is
 too old for pynhd, and mixing the two is what caused the numpy/aiohttp errors.
